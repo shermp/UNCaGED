@@ -1,6 +1,8 @@
 # UNCaGED - Universal Networked Calibre Go Ereader Device
 A library to connect to Calibre over a network, using Calibre's "Smart Devices" API
 
+NOTE: UNCaGED is currently ALPHA software. It is not ready for everyday usage just yet.
+
 ## Usage
 UNCaGED is not designed to be run standalone. Rather, it should be integrated with a device specific program to provide a complete "wireless device" solution to connect with Calibre.
 
