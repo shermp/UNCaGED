@@ -38,6 +38,8 @@ import (
 	"github.com/ricochet2200/go-disk-usage/du"
 )
 
+const tcpDeadlineTimeout = 15
+
 type calOpCode int
 
 // Calibre opcodes
@@ -129,10 +131,10 @@ func delFromSlice(slice []map[string]interface{}, index int) []map[string]interf
 
 // New initilizes the calibre connection, and returns it
 // An error is returned if a Calibre instance cannot be found
-func New(cliOpts ClientOptions, scrnPrnt ScreenPrinter) (calConn, error) {
+func New(cliOpts ClientOptions, scrnPrnt ScreenPrinter) (*calConn, error) {
 	var retErr error
 	retErr = nil
-	var c calConn
+	c := &calConn{}
 	c.clientOpts = cliOpts
 	c.NewMetadata = make([]map[string]interface{}, 0)
 	c.DelMetadata = make([]map[string]interface{}, 0)
@@ -170,7 +172,7 @@ func (c *calConn) Listen() (err error) {
 		return errors.Wrap(err, "calibre connection failed")
 	}
 	defer c.tcpConn.Close()
-	c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
+	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	c.scrnPrint.Println("Connected to Calibre!")
 	c.tcpReader = bufio.NewReader(c.tcpConn)
 	// Keep reading untill the connection is closed
@@ -199,11 +201,11 @@ func (c *calConn) Listen() (err error) {
 			} else {
 				// Let's try again...
 				log.Println("Length too long. Possibly not size.")
-				c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
+				c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 				continue
 			}
 		}
-		c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
+		c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 		// Put that '[' character back into the buffer. Our JSON
 		// parser will need it later...
 		c.tcpReader.UnreadByte()
@@ -225,7 +227,7 @@ func (c *calConn) Listen() (err error) {
 		} else if err != nil {
 			return errors.Wrap(err, "did not receive full payload")
 		}
-		c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
+		c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 		// Now that we hopefully have our payload, time to unmarshal it
 		var calibreDat []interface{}
 		err = json.Unmarshal(payload, &calibreDat)
@@ -280,7 +282,7 @@ func (c *calConn) writeTCP(payload []byte) error {
 	} else if err != nil {
 		return errors.Wrap(err, "write to tcp connection failed")
 	}
-	c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
+	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	return nil
 }
 
@@ -350,7 +352,7 @@ func (c *calConn) getDeviceInfo(data []interface{}) error {
 			devInfo.DevInfo.DeviceName = c.clientOpts.DeviceName
 			devInfo.DevInfo.DeviceStoreUUID = c.clientOpts.DevStore.UUID
 			devInfo.DevInfo.LocationCode = c.clientOpts.DevStore.LocationCode
-			devInfo.DevInfo.Prefix = c.clientOpts.DevStore.BookDir
+			devInfo.DevInfo.Prefix = ""
 		}
 	} else {
 		return errors.Wrap(err, "failed to open driveinfo file")
@@ -464,7 +466,7 @@ func (c *calConn) sendBook(data []interface{}) error {
 		os.Remove(bookPath)
 		return errors.Wrap(err, "error saving ebook file")
 	}
-	c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
+	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	existingBook := false
 	for _, md := range c.metadata {
 		if strings.Compare(md["uuid"].(string), userMetadata["uuid"].(string)) == 0 {

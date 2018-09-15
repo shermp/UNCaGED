@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/shermp/UNCaGED/uncgd"
 )
@@ -49,14 +50,13 @@ func main() {
 	opts.DeviceModel = "Win"
 	opts.DeviceName = "UNCaGED Alpha"
 	opts.DevStore.RootDir = curDir
-	opts.DevStore.BookDir = "exampleBooks"
+	opts.DevStore.BookDir = filepath.Join(curDir, "exampleBooks/")
 	opts.DevStore.LocationCode = "main"
 	opts.DevStore.UUID = "498e8f45-b57f-4fb0-9cba-8c7dae1efb39"
 	opts.SupportedExt = []string{"epub", "mobi"}
 
 	prnt := &uPrinter{}
-	c, err := uncgd.New(opts, prnt)
-	cc := &c
+	cc, err := uncgd.New(opts, prnt)
 	if err != nil {
 		prnt.Println(err)
 	} else {
