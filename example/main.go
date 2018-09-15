@@ -28,6 +28,14 @@ import (
 	"github.com/shermp/UNCaGED/uncgd"
 )
 
+type uPrinter struct {
+}
+
+func (p *uPrinter) Println(a ...interface{}) (n int, err error) {
+	n, err = fmt.Println(a...)
+	return n, err
+}
+
 func main() {
 	curDir, err := os.Getwd()
 	if err != nil {
@@ -46,21 +54,12 @@ func main() {
 	opts.DevStore.UUID = "498e8f45-b57f-4fb0-9cba-8c7dae1efb39"
 	opts.SupportedExt = []string{"epub", "mobi"}
 
-	c, err := uncgd.New(opts)
+	prnt := &uPrinter{}
+	c, err := uncgd.New(opts, prnt)
 	cc := &c
 	if err != nil {
-		fmt.Print(err)
+		prnt.Println(err)
 	} else {
-		go cc.Listen()
-	S:
-		for {
-			status := <-cc.Status
-			switch status.StatCode {
-			case uncgd.PrintMsg:
-				fmt.Println(status.Value)
-			case uncgd.TCPclosed:
-				break S
-			}
-		}
+		cc.Listen()
 	}
 }

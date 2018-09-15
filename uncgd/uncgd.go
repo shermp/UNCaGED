@@ -63,6 +63,12 @@ const (
 	TOTAL_SPACE             calOpCode = 4
 )
 
+// ScreenPrinter is an interface which UNCaGED uses to print messages to
+// the users display
+type ScreenPrinter interface {
+	Println(a ...interface{}) (n int, err error)
+}
+
 // calConn holds all parameters required to implement a calibre connection
 type calConn struct {
 	clientOpts  ClientOptions
@@ -79,7 +85,7 @@ type calConn struct {
 	transferCount int
 	tcpReadWait   chan bool
 	tcpReader     *bufio.Reader
-	Status        chan Status
+	scrnPrint     ScreenPrinter
 }
 
 // ClientOptions stores all the client specific options that a client needs
@@ -100,24 +106,6 @@ type ClientOptions struct {
 		Width  int
 		Height int
 	}
-}
-
-// StatusCode is an opcode to let the calling program know what kind
-// of message has been sent on the channel
-type StatusCode int
-
-const (
-	PrintMsg    StatusCode = iota // Value will contain a string to print
-	ProgPercent                   // Value will contain an int between 0 and 100
-	ConnectErr                    // Value will contain a string describing the error
-	TCPclosed                     // Value will be nil
-)
-
-// Status will be sent on the channel to inform the calling program of the current
-// status of CalConn
-type Status struct {
-	StatCode StatusCode
-	Value    interface{}
 }
 
 // buildJSONpayload builds a payload in the format that Calibre expects
@@ -142,18 +130,18 @@ func delFromSlice(slice []map[string]interface{}, index int) []map[string]interf
 
 // New initilizes the calibre connection, and returns it
 // An error is returned if a Calibre instance cannot be found
-func New(cliOpts ClientOptions) (calConn, error) {
+func New(cliOpts ClientOptions, scrnPrnt ScreenPrinter) (calConn, error) {
 	var retErr error
 	retErr = nil
 	var c calConn
 	c.clientOpts = cliOpts
-	c.Status = make(chan Status, 20)
 	c.NewMetadata = make([]map[string]interface{}, 0)
 	c.DelMetadata = make([]map[string]interface{}, 0)
 	c.metadata = make([]map[string]interface{}, 0)
 	c.transferCount = 0
 	c.tcpReadWait = make(chan bool)
 	c.okStr = "6[0,{}]"
+	c.scrnPrint = scrnPrnt
 	udpReply := make(chan string)
 	// Calibre listens for a 'hello' UDP packet on the following
 	// five ports. We try all five ports concurrently
@@ -177,16 +165,16 @@ func New(cliOpts ClientOptions) (calConn, error) {
 // Listen starts a TCP connection with Calibre, then listens
 // for messages and pass them to the appropriate handler
 func (c *calConn) Listen() {
-	c.Status <- Status{StatCode: PrintMsg, Value: "Connecting to Calibre..."}
+	c.scrnPrint.Println("Connecting to Calibre...")
 	// Connect to Calibre
 	var err error
 	c.tcpConn, err = net.Dial("tcp", c.calibreAddr)
 	if err != nil {
 		log.Print(err)
-		c.Status <- Status{StatCode: PrintMsg, Value: err.Error()}
+		c.scrnPrint.Println(err)
 		return
 	}
-	c.Status <- Status{StatCode: PrintMsg, Value: "Connected!"}
+	c.scrnPrint.Println("Connected!")
 	c.tcpReader = bufio.NewReader(c.tcpConn)
 	// Keep reading untill the connection is closed
 	exitListen := false
@@ -259,8 +247,7 @@ func (c *calConn) Listen() {
 			break
 		}
 	}
-	done := Status{StatCode: TCPclosed, Value: nil}
-	c.Status <- done
+	return
 }
 
 func (c *calConn) writeCurrentMetadata() {
