@@ -109,8 +109,8 @@ type StatusCode int
 const (
 	PrintMsg    StatusCode = iota // Value will contain a string to print
 	ProgPercent                   // Value will contain an int between 0 and 100
-	ConnectErr
-	TCPclosed
+	ConnectErr                    // Value will contain a string describing the error
+	TCPclosed                     // Value will be nil
 )
 
 // Status will be sent on the channel to inform the calling program of the current
@@ -120,6 +120,7 @@ type Status struct {
 	Value    interface{}
 }
 
+// buildJSONpayload builds a payload in the format that Calibre expects
 func buildJSONpayload(jsonBytes []byte, op calOpCode) []byte {
 	prefix := []byte("[" + strconv.Itoa(int(op)) + ",")
 	suffix := []byte("]")
@@ -140,6 +141,7 @@ func delFromSlice(slice []map[string]interface{}, index int) []map[string]interf
 }
 
 // New initilizes the calibre connection, and returns it
+// An error is returned if a Calibre instance cannot be found
 func New(cliOpts ClientOptions) (calConn, error) {
 	var retErr error
 	retErr = nil
@@ -153,14 +155,19 @@ func New(cliOpts ClientOptions) (calConn, error) {
 	c.tcpReadWait = make(chan bool)
 	c.okStr = "6[0,{}]"
 	udpReply := make(chan string)
+	// Calibre listens for a 'hello' UDP packet on the following
+	// five ports. We try all five ports concurrently
 	bcastPorts := []int{54982, 48123, 39001, 44044, 59678}
 	for _, p := range bcastPorts {
 		go c.findCalibre(p, udpReply)
 	}
 
 	select {
+	// We choose the first reply we recieve, which is a string
+	// containing the IP address and port to connect to
 	case addr := <-udpReply:
 		c.calibreAddr = addr
+	// A timeout just in case we receive no reply
 	case <-time.After(5 * time.Second):
 		retErr = errors.New("calibre server not found")
 	}
