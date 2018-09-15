@@ -23,7 +23,6 @@ package uncgd
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -35,6 +34,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/ricochet2200/go-disk-usage/du"
 )
 
@@ -83,7 +83,6 @@ type calConn struct {
 	NewMetadata   []map[string]interface{}
 	DelMetadata   []map[string]interface{}
 	transferCount int
-	tcpReadWait   chan bool
 	tcpReader     *bufio.Reader
 	scrnPrint     ScreenPrinter
 }
@@ -139,7 +138,6 @@ func New(cliOpts ClientOptions, scrnPrnt ScreenPrinter) (calConn, error) {
 	c.DelMetadata = make([]map[string]interface{}, 0)
 	c.metadata = make([]map[string]interface{}, 0)
 	c.transferCount = 0
-	c.tcpReadWait = make(chan bool)
 	c.okStr = "6[0,{}]"
 	c.scrnPrint = scrnPrnt
 	udpReply := make(chan string)
@@ -164,17 +162,16 @@ func New(cliOpts ClientOptions, scrnPrnt ScreenPrinter) (calConn, error) {
 
 // Listen starts a TCP connection with Calibre, then listens
 // for messages and pass them to the appropriate handler
-func (c *calConn) Listen() {
+func (c *calConn) Listen() (err error) {
 	c.scrnPrint.Println("Connecting to Calibre...")
 	// Connect to Calibre
-	var err error
 	c.tcpConn, err = net.Dial("tcp", c.calibreAddr)
 	if err != nil {
-		log.Print(err)
-		c.scrnPrint.Println(err)
-		return
+		return errors.Wrap(err, "calibre connection failed")
 	}
-	c.scrnPrint.Println("Connected!")
+	defer c.tcpConn.Close()
+	c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
+	c.scrnPrint.Println("Connected to Calibre!")
 	c.tcpReader = bufio.NewReader(c.tcpConn)
 	// Keep reading untill the connection is closed
 	exitListen := false
@@ -183,24 +180,30 @@ func (c *calConn) Listen() {
 		// 13[0,{"foo":1}]
 		msgSz, err := c.tcpReader.ReadBytes('[')
 		buffLen := len(msgSz)
+		if e, ok := err.(net.Error); ok && e.Timeout() {
+			return errors.Wrap(err, "connection timed out!")
+		}
 		// Assume the payload should be less than 10MB!
 		if (buffLen > 8) || err != nil {
 			if err != nil {
 				if err == io.EOF {
 					if buffLen <= 0 {
 						// Done now
-						break
+						return nil
 					} else {
 						// We may still have a paylad to decode
 						exitListen = true
 					}
 				}
-				log.Print(err)
+				return errors.Wrap(err, "error reading payload preamble")
 			} else {
-				log.Printf("Length too long. Possibly not size.")
+				// Let's try again...
+				log.Println("Length too long. Possibly not size.")
+				c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
+				continue
 			}
-
 		}
+		c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
 		// Put that '[' character back into the buffer. Our JSON
 		// parser will need it later...
 		c.tcpReader.UnreadByte()
@@ -211,15 +214,24 @@ func (c *calConn) Listen() {
 		}
 		sz, err := strconv.Atoi(string(msgSz))
 		if err != nil {
-			log.Print(err)
+			return errors.Wrap(err, "error decoding payload size")
 		}
 		// We have our payload size. Create the appropriate buffer.
 		// and read into it.
 		payload := make([]byte, sz)
 		io.ReadFull(c.tcpReader, payload)
+		if e, ok := err.(net.Error); ok && e.Timeout() {
+			return errors.Wrap(err, "connection timed out!")
+		} else if err != nil {
+			return errors.Wrap(err, "did not receive full payload")
+		}
+		c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
 		// Now that we hopefully have our payload, time to unmarshal it
 		var calibreDat []interface{}
 		err = json.Unmarshal(payload, &calibreDat)
+		if err != nil {
+			return errors.Wrap(err, "could not unmarshal payload")
+		}
 		// The first element should always be an opcode
 		opcode := calOpCode(calibreDat[0].(float64))
 
@@ -247,34 +259,50 @@ func (c *calConn) Listen() {
 			break
 		}
 	}
-	return
+	return nil
 }
 
-func (c *calConn) writeCurrentMetadata() {
+func (c *calConn) writeCurrentMetadata() error {
 	mdPath := filepath.Join(c.clientOpts.DevStore.RootDir, ".metadata.calibre")
-	mdFile, err := os.OpenFile(mdPath, os.O_WRONLY|os.O_CREATE, 0666)
-	defer mdFile.Close()
-	if err != nil {
-		log.Print(err)
-	}
 	mdJSON, _ := json.MarshalIndent(c.metadata, "", "    ")
-	mdFile.Write(mdJSON)
-	mdFile.Close()
+	err := ioutil.WriteFile(mdPath, mdJSON, 0644)
+	if err != nil {
+		return errors.Wrap(err, "failed writing metadata")
+	}
+	return nil
 }
 
-func (c *calConn) handleNoop(data []interface{}) {
+// Convenience function to handle writing to our TCP connection, and manage the deadline
+func (c *calConn) writeTCP(payload []byte) error {
+	_, err := c.tcpConn.Write(payload)
+	if e, ok := err.(net.Error); ok && e.Timeout() {
+		return errors.Wrap(err, "connection timed out!")
+	} else if err != nil {
+		return errors.Wrap(err, "write to tcp connection failed")
+	}
+	c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
+	return nil
+}
+
+func (c *calConn) handleNoop(data []interface{}) error {
 	calJSON := data[1].(map[string]interface{})
 	if len(calJSON) == 0 {
 		// Calibre appears to use this opcode as a keep-alive signal
 		// We reply to tell callibre is all still good.
-		c.tcpConn.Write([]byte(c.okStr))
+		err := c.writeTCP([]byte(c.okStr))
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (c *calConn) getInitInfo(data []interface{}) {
+func (c *calConn) getInitInfo(data []interface{}) error {
 	calSettings := data[1].(map[string]interface{})
 	calVersion := calSettings["calibre_version"].([]interface{})
-	c.calibreInfo.calibreVers = strconv.Itoa(int(calVersion[0].(float64))) + "." + strconv.Itoa(int(calVersion[1].(float64))) + "." + strconv.Itoa(int(calVersion[2].(float64)))
+	c.calibreInfo.calibreVers = strconv.Itoa(int(calVersion[0].(float64))) + "." +
+		strconv.Itoa(int(calVersion[1].(float64))) + "." +
+		strconv.Itoa(int(calVersion[2].(float64)))
 	c.calibreInfo.calibreLibUUID = calSettings["currentLibraryUUID"].(string)
 	//calibreInfo := data[1].(map[string]interface{})
 	extPathLen := make(map[string]int)
@@ -300,20 +328,17 @@ func (c *calConn) getInitInfo(data []interface{}) {
 		CanSendOkToSendbook:     true,
 		CanAcceptLibraryInfo:    true,
 	}
-	initJSON, err := json.Marshal(initInfo)
-	if err != nil {
-		log.Print(err)
-	}
+	initJSON, _ := json.Marshal(initInfo)
 	payload := buildJSONpayload(initJSON, OK)
-	c.tcpConn.Write(payload)
+	return c.writeTCP(payload)
 }
 
-func (c *calConn) getDeviceInfo(data []interface{}) {
+func (c *calConn) getDeviceInfo(data []interface{}) error {
 	var devInfo DeviceInfo
 	drvInfoPath := filepath.Join(c.clientOpts.DevStore.RootDir, ".driveinfo.calibre")
 	drvInfoFile, err := os.OpenFile(drvInfoPath, os.O_RDWR|os.O_CREATE, 0666)
-	defer drvInfoFile.Close()
 	if err == nil {
+		defer drvInfoFile.Close()
 		fi, _ := drvInfoFile.Stat()
 		if fi.Size() > 0 {
 			drvInfoJSON, _ := ioutil.ReadAll(drvInfoFile)
@@ -328,31 +353,39 @@ func (c *calConn) getDeviceInfo(data []interface{}) {
 			devInfo.DevInfo.Prefix = c.clientOpts.DevStore.BookDir
 		}
 	} else {
-		log.Print(err)
+		return errors.Wrap(err, "failed to open driveinfo file")
 	}
 	devInfo.DeviceVersion = c.clientOpts.DeviceModel
 	devInfo.Version = "391"
 	devInfoJSON, _ := json.Marshal(devInfo)
 	payload := buildJSONpayload(devInfoJSON, OK)
-	c.tcpConn.Write(payload)
+
+	err = c.writeTCP(payload)
+	if err != nil {
+		return err
+	}
 	devInfo.DevInfo.CalibreVersion = c.calibreInfo.calibreVers
 	devInfo.DevInfo.LastLibraryUUID = c.calibreInfo.calibreLibUUID
 	devInfo.DevInfo.DateLastConnected = time.Now().Truncate(time.Second)
 	drvInfoJSON, _ := json.MarshalIndent(devInfo.DevInfo, "", "    ")
-	drvInfoFile.Write(drvInfoJSON)
+	_, err = drvInfoFile.Write(drvInfoJSON)
+	if err != nil {
+		return errors.Wrap(err, "failed to write to driveinfo file")
+	}
 	drvInfoFile.Close()
+	return nil
 }
 
-func (c *calConn) getFreeSpace() {
+func (c *calConn) getFreeSpace() error {
 	usage := du.NewDiskUsage(c.clientOpts.DevStore.RootDir)
 	var space FreeSpace
 	space.FreeSpaceOnDevice = usage.Available()
 	fsJSON, _ := json.Marshal(space)
 	payload := buildJSONpayload(fsJSON, OK)
-	c.tcpConn.Write(payload)
+	return c.writeTCP(payload)
 }
 
-func (c *calConn) getBookCount() {
+func (c *calConn) getBookCount() error {
 	var bookDetails []BookCountDetails
 	count := BookCount{Count: 0, WillStream: true, WillScan: true}
 	mdPath := filepath.Join(c.clientOpts.DevStore.RootDir, ".metadata.calibre")
@@ -381,17 +414,24 @@ func (c *calConn) getBookCount() {
 	}
 	bcJSON, _ := json.Marshal(count)
 	payload := buildJSONpayload(bcJSON, OK)
-	c.tcpConn.Write(payload)
+	err = c.writeTCP(payload)
+	if err != nil {
+		return err
+	}
 	if count.Count > 0 {
 		for _, bd := range bookDetails {
 			bdJSON, _ := json.Marshal(bd)
 			payload = buildJSONpayload(bdJSON, OK)
-			c.tcpConn.Write(payload)
+			err = c.writeTCP(payload)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
-func (c *calConn) sendBook(data []interface{}) {
+func (c *calConn) sendBook(data []interface{}) error {
 	calJSON := data[1].(map[string]interface{})
 	if c.transferCount == 0 {
 		c.transferCount = int(calJSON["totalBooks"].(float64))
@@ -400,22 +440,31 @@ func (c *calConn) sendBook(data []interface{}) {
 	lPath := calJSON["lpath"].(string)
 	bookPath := filepath.Join(c.clientOpts.DevStore.RootDir, lPath)
 	bookLen := int64(calJSON["length"].(float64))
-	bookFile, err := os.OpenFile(bookPath, os.O_WRONLY|os.O_CREATE, 0666)
+	bookFile, err := os.OpenFile(bookPath, os.O_WRONLY|os.O_CREATE, 0644)
 	defer bookFile.Close()
 	if err != nil {
-		log.Printf("Could not open ebook file!")
-		return
+		return errors.Wrap(err, "could not open ebook file")
 	}
 	wantsOK := calJSON["wantsSendOkToSendbook"].(bool)
 	if wantsOK {
-		c.tcpConn.Write([]byte(c.okStr))
+		err = c.writeTCP([]byte(c.okStr))
+		if err != nil {
+			return err
+		}
 	}
 	written, err := io.CopyN(bookFile, c.tcpReader, bookLen)
 	if err == nil {
 		if written != bookLen {
-			log.Printf("There was an error recieving the ebook!")
+			bookFile.Close()
+			os.Remove(bookPath)
+			return errors.New("ebook did not transfer correctly")
 		}
+	} else {
+		bookFile.Close()
+		os.Remove(bookPath)
+		return errors.Wrap(err, "error saving ebook file")
 	}
+	c.tcpConn.SetDeadline(time.Now().Add(10 * time.Second))
 	existingBook := false
 	for _, md := range c.metadata {
 		if strings.Compare(md["uuid"].(string), userMetadata["uuid"].(string)) == 0 {
@@ -441,12 +490,19 @@ func (c *calConn) sendBook(data []interface{}) {
 	// If we've finished this set of transfers, write out the conanical metadata
 	// to file.
 	if c.transferCount == 0 {
-		c.writeCurrentMetadata()
+		err = c.writeCurrentMetadata()
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (c *calConn) deleteBook(data []interface{}) {
-	c.tcpConn.Write([]byte(c.okStr))
+func (c *calConn) deleteBook(data []interface{}) error {
+	err := c.writeTCP([]byte(c.okStr))
+	if err != nil {
+		return err
+	}
 	delJSON := data[1].(map[string]interface{})
 	lpathsInterArr := delJSON["lpaths"].([]interface{})
 	lpaths := make([]string, len(lpathsInterArr))
@@ -462,7 +518,7 @@ func (c *calConn) deleteBook(data []interface{}) {
 				uuidMap := map[string]string{"uuid": md["uuid"].(string)}
 				uuidJSON, _ := json.Marshal(uuidMap)
 				payload := buildJSONpayload(uuidJSON, OK)
-				c.tcpConn.Write(payload)
+				c.writeTCP(payload)
 				// Delete the current book from the main metadata
 				c.metadata = delFromSlice(c.metadata, i)
 				break
@@ -475,7 +531,7 @@ func (c *calConn) deleteBook(data []interface{}) {
 			}
 		}
 	}
-	c.writeCurrentMetadata()
+	return c.writeCurrentMetadata()
 }
 
 func (c *calConn) findCalibre(bcastPort int, calibreAddr chan<- string) {
@@ -493,7 +549,10 @@ func (c *calConn) findCalibre(bcastPort int, calibreAddr chan<- string) {
 	deadlineTime := time.Now().Add(5 * time.Second)
 	pc.SetReadDeadline(deadlineTime)
 	bytesRead, addr, err := pc.ReadFrom(calibreReply)
-	if err != nil {
+	if e, ok := err.(net.Error); ok && e.Timeout() {
+		pc.Close()
+		return
+	} else if err != nil {
 		log.Print(err)
 		return
 	}
