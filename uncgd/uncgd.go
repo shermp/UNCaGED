@@ -563,6 +563,8 @@ func (c *calConn) deleteBook(data []interface{}) error {
 				uuidJSON, _ := json.Marshal(uuidMap)
 				payload := buildJSONpayload(uuidJSON, OK)
 				c.writeTCP(payload)
+				// Add metadata to the deleted metadata slice
+				c.DelMetadata = append(c.DelMetadata, md)
 				// Delete the current book from the main metadata
 				c.metadata = delFromSlice(c.metadata, i)
 				break
