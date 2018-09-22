@@ -49,7 +49,6 @@ func main() {
 	opts.CoverDims.Width = 530
 	opts.DeviceModel = "Win"
 	opts.DeviceName = "UNCaGED Alpha"
-	opts.DevStore.RootDir = curDir
 	opts.DevStore.BookDir = filepath.Join(curDir, "exampleBooks/")
 	opts.DevStore.LocationCode = "main"
 	opts.DevStore.UUID = "498e8f45-b57f-4fb0-9cba-8c7dae1efb39"
@@ -60,6 +59,10 @@ func main() {
 	if err != nil {
 		prnt.Println(err)
 	} else {
-		cc.Listen()
+		err = cc.Listen()
+		if err != nil {
+			prnt.Println(err)
+		}
+		prnt.Println(len(cc.NewMetadata), len(cc.DelMetadata))
 	}
 }

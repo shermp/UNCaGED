@@ -97,7 +97,7 @@ type ClientOptions struct {
 	DeviceModel string // The device model of deviceName
 	// Information about a specific store (partition/folder etc.)
 	DevStore struct {
-		RootDir      string // The root directory of the store (absolute)
+		//RootDir      string // The root directory of the store (absolute)
 		BookDir      string // the book directory to download books to. (relative to RootDir)
 		LocationCode string // The location code for the calibre GUI (eg: "main", "cardA")
 		UUID         string // The UUID for the device store
@@ -136,6 +136,7 @@ func New(cliOpts ClientOptions, scrnPrnt ScreenPrinter) (*calConn, error) {
 	retErr = nil
 	c := &calConn{}
 	c.clientOpts = cliOpts
+	os.MkdirAll(c.clientOpts.DevStore.BookDir, 0644)
 	c.NewMetadata = make([]map[string]interface{}, 0)
 	c.DelMetadata = make([]map[string]interface{}, 0)
 	c.metadata = make([]map[string]interface{}, 0)
@@ -239,23 +240,26 @@ func (c *calConn) Listen() (err error) {
 
 		switch opcode {
 		case GET_INITIALIZATION_INFO:
-			c.getInitInfo(calibreDat)
+			err = c.getInitInfo(calibreDat)
 		case GET_DEVICE_INFORMATION:
-			c.getDeviceInfo(calibreDat)
+			err = c.getDeviceInfo(calibreDat)
 		case SET_CALIBRE_DEVICE_INFO:
-			c.tcpConn.Write([]byte(c.okStr))
+			err = c.setDeviceInfo(calibreDat)
 		case FREE_SPACE:
-			c.getFreeSpace()
+			err = c.getFreeSpace()
 		case GET_BOOK_COUNT:
-			c.getBookCount()
+			err = c.getBookCount()
 		case SET_LIBRARY_INFO:
-			c.tcpConn.Write([]byte(c.okStr))
+			err = c.writeTCP([]byte(c.okStr))
 		case SEND_BOOK:
-			c.sendBook(calibreDat)
+			err = c.sendBook(calibreDat)
 		case DELETE_BOOK:
-			c.deleteBook(calibreDat)
+			err = c.deleteBook(calibreDat)
 		case NOOP:
-			c.handleNoop(calibreDat)
+			err = c.handleNoop(calibreDat)
+		}
+		if err != nil {
+			return err
 		}
 		if exitListen {
 			break
@@ -265,7 +269,7 @@ func (c *calConn) Listen() (err error) {
 }
 
 func (c *calConn) writeCurrentMetadata() error {
-	mdPath := filepath.Join(c.clientOpts.DevStore.RootDir, ".metadata.calibre")
+	mdPath := filepath.Join(c.clientOpts.DevStore.BookDir, ".metadata.calibre")
 	mdJSON, _ := json.MarshalIndent(c.metadata, "", "    ")
 	err := ioutil.WriteFile(mdPath, mdJSON, 0644)
 	if err != nil {
@@ -337,49 +341,48 @@ func (c *calConn) getInitInfo(data []interface{}) error {
 
 func (c *calConn) getDeviceInfo(data []interface{}) error {
 	var devInfo DeviceInfo
-	drvInfoPath := filepath.Join(c.clientOpts.DevStore.RootDir, ".driveinfo.calibre")
-	drvInfoFile, err := os.OpenFile(drvInfoPath, os.O_RDWR|os.O_CREATE, 0666)
-	if err == nil {
-		defer drvInfoFile.Close()
-		fi, _ := drvInfoFile.Stat()
-		if fi.Size() > 0 {
-			drvInfoJSON, _ := ioutil.ReadAll(drvInfoFile)
-			json.Unmarshal(drvInfoJSON, &devInfo.DevInfo)
-		} else {
-			devInfo.DevInfo.CalibreVersion = c.calibreInfo.calibreVers
-			devInfo.DevInfo.LastLibraryUUID = c.calibreInfo.calibreLibUUID
-			devInfo.DevInfo.DateLastConnected = time.Now().Truncate(time.Second)
-			devInfo.DevInfo.DeviceName = c.clientOpts.DeviceName
-			devInfo.DevInfo.DeviceStoreUUID = c.clientOpts.DevStore.UUID
-			devInfo.DevInfo.LocationCode = c.clientOpts.DevStore.LocationCode
-			devInfo.DevInfo.Prefix = ""
+	drvInfoPath := filepath.Join(c.clientOpts.DevStore.BookDir, ".driveinfo.calibre")
+	drvInfoJSON, err := ioutil.ReadFile(drvInfoPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return errors.Wrap(err, "could not open driveinfo file")
 		}
-	} else {
-		return errors.Wrap(err, "failed to open driveinfo file")
 	}
+	if drvInfoJSON != nil && len(drvInfoJSON) > 0 {
+		json.Unmarshal(drvInfoJSON, &devInfo.DevInfo)
+	} else {
+		devInfo.DevInfo.CalibreVersion = ""
+		devInfo.DevInfo.LastLibraryUUID = ""
+		devInfo.DevInfo.DateLastConnected = time.Now().Truncate(time.Second)
+		devInfo.DevInfo.DeviceName = c.clientOpts.DeviceName
+		devInfo.DevInfo.DeviceStoreUUID = c.clientOpts.DevStore.UUID
+		devInfo.DevInfo.LocationCode = c.clientOpts.DevStore.LocationCode
+		devInfo.DevInfo.Prefix = ""
+	}
+
 	devInfo.DeviceVersion = c.clientOpts.DeviceModel
 	devInfo.Version = "391"
 	devInfoJSON, _ := json.Marshal(devInfo)
 	payload := buildJSONpayload(devInfoJSON, OK)
+	return c.writeTCP(payload)
+}
 
-	err = c.writeTCP(payload)
+func (c *calConn) setDeviceInfo(data []interface{}) error {
+	calDevInfo := data[1].(map[string]interface{})
+	drvJSON, err := json.MarshalIndent(calDevInfo, "", "    ")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "problem saving calibre device info")
 	}
-	devInfo.DevInfo.CalibreVersion = c.calibreInfo.calibreVers
-	devInfo.DevInfo.LastLibraryUUID = c.calibreInfo.calibreLibUUID
-	devInfo.DevInfo.DateLastConnected = time.Now().Truncate(time.Second)
-	drvInfoJSON, _ := json.MarshalIndent(devInfo.DevInfo, "", "    ")
-	_, err = drvInfoFile.Write(drvInfoJSON)
+	drvPath := filepath.Join(c.clientOpts.DevStore.BookDir, ".driveinfo.calibre")
+	err = ioutil.WriteFile(drvPath, drvJSON, 0644)
 	if err != nil {
-		return errors.Wrap(err, "failed to write to driveinfo file")
+		return errors.Wrap(err, "could not write to .driveinfo.calibre")
 	}
-	drvInfoFile.Close()
-	return nil
+	return c.writeTCP([]byte(c.okStr))
 }
 
 func (c *calConn) getFreeSpace() error {
-	usage := du.NewDiskUsage(c.clientOpts.DevStore.RootDir)
+	usage := du.NewDiskUsage(c.clientOpts.DevStore.BookDir)
 	var space FreeSpace
 	space.FreeSpaceOnDevice = usage.Available()
 	fsJSON, _ := json.Marshal(space)
@@ -390,7 +393,7 @@ func (c *calConn) getFreeSpace() error {
 func (c *calConn) getBookCount() error {
 	var bookDetails []BookCountDetails
 	count := BookCount{Count: 0, WillStream: true, WillScan: true}
-	mdPath := filepath.Join(c.clientOpts.DevStore.RootDir, ".metadata.calibre")
+	mdPath := filepath.Join(c.clientOpts.DevStore.BookDir, ".metadata.calibre")
 	mdFile, err := os.OpenFile(mdPath, os.O_RDWR|os.O_CREATE, 0666)
 	defer mdFile.Close()
 	if err == nil {
@@ -440,7 +443,12 @@ func (c *calConn) sendBook(data []interface{}) error {
 	}
 	userMetadata := calJSON["metadata"].(map[string]interface{})
 	lPath := calJSON["lpath"].(string)
-	bookPath := filepath.Join(c.clientOpts.DevStore.RootDir, lPath)
+	bookPath := filepath.Join(c.clientOpts.DevStore.BookDir, lPath)
+	basePath, _ := filepath.Split(bookPath)
+	err := os.MkdirAll(basePath, 0644)
+	if err != nil {
+		return errors.Wrap(err, "could not create ebook directory")
+	}
 	bookLen := int64(calJSON["length"].(float64))
 	bookFile, err := os.OpenFile(bookPath, os.O_WRONLY|os.O_CREATE, 0644)
 	defer bookFile.Close()
@@ -512,7 +520,7 @@ func (c *calConn) deleteBook(data []interface{}) error {
 		lpaths[i] = lp.(string)
 	}
 	for _, lp := range lpaths {
-		path := filepath.Join(c.clientOpts.DevStore.RootDir, lp)
+		path := filepath.Join(c.clientOpts.DevStore.BookDir, lp)
 		os.Remove(path)
 		for i, md := range c.metadata {
 			if strings.Compare(md["lpath"].(string), lp) == 0 {
