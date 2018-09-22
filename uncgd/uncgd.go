@@ -137,7 +137,7 @@ func New(cliOpts ClientOptions, scrnPrnt ScreenPrinter) (*calConn, error) {
 	retErr = nil
 	c := &calConn{}
 	c.clientOpts = cliOpts
-	os.MkdirAll(c.clientOpts.DevStore.BookDir, 0644)
+	os.MkdirAll(c.clientOpts.DevStore.BookDir, 0777)
 	c.NewMetadata = make([]map[string]interface{}, 0)
 	c.DelMetadata = make([]map[string]interface{}, 0)
 	c.metadata = make([]map[string]interface{}, 0)
@@ -476,7 +476,7 @@ func (c *calConn) sendBook(data []interface{}) error {
 	basePath, _ := filepath.Split(bookPath)
 	// Calibre can specify subdirectories. We need to make sure these exist
 	// before attempting to create/open the ebook file.
-	err := os.MkdirAll(basePath, 0644)
+	err := os.MkdirAll(basePath, 0777)
 	if err != nil {
 		return errors.Wrap(err, "could not create ebook directory")
 	}
