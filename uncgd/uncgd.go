@@ -122,6 +122,7 @@ func buildJSONpayload(jsonBytes []byte, op calOpCode) []byte {
 	return payload
 }
 
+// Convenience function to remove element(s) from a JSON array
 func delFromSlice(slice []map[string]interface{}, index int) []map[string]interface{} {
 	slice[index] = slice[len(slice)-1]
 	slice[len(slice)-1] = nil
@@ -268,6 +269,7 @@ func (c *calConn) Listen() (err error) {
 	return nil
 }
 
+// Write the current metadata to a file on disk
 func (c *calConn) writeCurrentMetadata() error {
 	mdPath := filepath.Join(c.clientOpts.DevStore.BookDir, ".metadata.calibre")
 	mdJSON, _ := json.MarshalIndent(c.metadata, "", "    ")
@@ -303,8 +305,11 @@ func (c *calConn) handleNoop(data []interface{}) error {
 	return nil
 }
 
+// getInitInfo handles the request from Calibre to send initialization info.
 func (c *calConn) getInitInfo(data []interface{}) error {
 	calSettings := data[1].(map[string]interface{})
+	// NOTE TO SELF: this is probably no longer necessary, but could be useful again
+	// in the future
 	calVersion := calSettings["calibre_version"].([]interface{})
 	c.calibreInfo.calibreVers = strconv.Itoa(int(calVersion[0].(float64))) + "." +
 		strconv.Itoa(int(calVersion[1].(float64))) + "." +
@@ -339,8 +344,12 @@ func (c *calConn) getInitInfo(data []interface{}) error {
 	return c.writeTCP(payload)
 }
 
+// getDeviceInfo handles the request from Calibre for the device (that's us!)
+// to send information about itself
 func (c *calConn) getDeviceInfo(data []interface{}) error {
 	var devInfo DeviceInfo
+	// Information about the previous connection (if any) is stored in a
+	// '.driveinfo.calibre' file in the book directory
 	drvInfoPath := filepath.Join(c.clientOpts.DevStore.BookDir, ".driveinfo.calibre")
 	drvInfoJSON, err := ioutil.ReadFile(drvInfoPath)
 	if err != nil {
@@ -351,6 +360,8 @@ func (c *calConn) getDeviceInfo(data []interface{}) error {
 	if drvInfoJSON != nil && len(drvInfoJSON) > 0 {
 		json.Unmarshal(drvInfoJSON, &devInfo.DevInfo)
 	} else {
+		// If the file doesn't exist, or is empty, we create some default values
+		// Calibre will send us updated driveinfo in the next packet
 		devInfo.DevInfo.CalibreVersion = ""
 		devInfo.DevInfo.LastLibraryUUID = ""
 		devInfo.DevInfo.DateLastConnected = time.Now().Truncate(time.Second)
@@ -367,6 +378,8 @@ func (c *calConn) getDeviceInfo(data []interface{}) error {
 	return c.writeTCP(payload)
 }
 
+// setDeviceInfo saves the return information we got from Calibre
+// to place in the '.driveinfo.calibre' file
 func (c *calConn) setDeviceInfo(data []interface{}) error {
 	calDevInfo := data[1].(map[string]interface{})
 	drvJSON, err := json.MarshalIndent(calDevInfo, "", "    ")
@@ -381,6 +394,8 @@ func (c *calConn) setDeviceInfo(data []interface{}) error {
 	return c.writeTCP([]byte(c.okStr))
 }
 
+// getFreeSpace tells Calibre how much space is available in our
+// book directory.
 func (c *calConn) getFreeSpace() error {
 	usage := du.NewDiskUsage(c.clientOpts.DevStore.BookDir)
 	var space FreeSpace
@@ -390,8 +405,13 @@ func (c *calConn) getFreeSpace() error {
 	return c.writeTCP(payload)
 }
 
+// getBookCount sends Calibre a list of ebooks currently on the device,
+// as known about in the '.metadata.calibre' file. It does NOT confirm the
+// continuing existance of the book on the device.
 func (c *calConn) getBookCount() error {
 	var bookDetails []BookCountDetails
+	// Set the initial count of books to zero. This is what we send
+	// if we have no books in our metadata file.
 	count := BookCount{Count: 0, WillStream: true, WillScan: true}
 	mdPath := filepath.Join(c.clientOpts.DevStore.BookDir, ".metadata.calibre")
 	mdFile, err := os.OpenFile(mdPath, os.O_RDWR|os.O_CREATE, 0666)
@@ -402,9 +422,11 @@ func (c *calConn) getBookCount() error {
 			mdJSON, _ := ioutil.ReadAll(mdFile)
 			json.Unmarshal(mdJSON, &c.metadata)
 		} else {
+			// If the file is new, initialize it with an empty JSON struct
 			mdFile.Write([]byte("[]\n"))
 		}
 	}
+	// If we have metadata, collect it now
 	if c.metadata != nil && len(c.metadata) > 0 {
 		for _, md := range c.metadata {
 			var bd BookCountDetails
@@ -414,15 +436,18 @@ func (c *calConn) getBookCount() error {
 			bookDetails = append(bookDetails, bd)
 		}
 	}
+	// And update our count
 	if bookDetails != nil && len(bookDetails) > 0 {
 		count.Count = len(bookDetails)
 	}
 	bcJSON, _ := json.Marshal(count)
 	payload := buildJSONpayload(bcJSON, OK)
+	// Send our count
 	err = c.writeTCP(payload)
 	if err != nil {
 		return err
 	}
+	// If we have books on device, send the metadata for each book
 	if count.Count > 0 {
 		for _, bd := range bookDetails {
 			bdJSON, _ := json.Marshal(bd)
@@ -436,8 +461,12 @@ func (c *calConn) getBookCount() error {
 	return nil
 }
 
+// sendBook is where the magic starts to happen. It recieves one
+// or more books from calibre.
 func (c *calConn) sendBook(data []interface{}) error {
 	calJSON := data[1].(map[string]interface{})
+	// c.transferCount lets us keep track of the number of books
+	// we expect Calibre to send.
 	if c.transferCount == 0 {
 		c.transferCount = int(calJSON["totalBooks"].(float64))
 	}
@@ -445,6 +474,8 @@ func (c *calConn) sendBook(data []interface{}) error {
 	lPath := calJSON["lpath"].(string)
 	bookPath := filepath.Join(c.clientOpts.DevStore.BookDir, lPath)
 	basePath, _ := filepath.Split(bookPath)
+	// Calibre can specify subdirectories. We need to make sure these exist
+	// before attempting to create/open the ebook file.
 	err := os.MkdirAll(basePath, 0644)
 	if err != nil {
 		return errors.Wrap(err, "could not create ebook directory")
@@ -475,6 +506,8 @@ func (c *calConn) sendBook(data []interface{}) error {
 		return errors.Wrap(err, "error saving ebook file")
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+
+	// If the book already exists, we update the metadata
 	existingBook := false
 	for _, md := range c.metadata {
 		if strings.Compare(md["uuid"].(string), userMetadata["uuid"].(string)) == 0 {
@@ -485,7 +518,7 @@ func (c *calConn) sendBook(data []interface{}) error {
 	}
 	for i, md := range c.DelMetadata {
 		if strings.Compare(md["uuid"].(string), userMetadata["uuid"].(string)) == 0 {
-			// If we're reading a book we previously deleted in this session, remove
+			// If we're sending a book we previously deleted in this session, remove
 			// it from the deleted metadata array
 			c.DelMetadata = delFromSlice(c.DelMetadata, i)
 			break
@@ -508,6 +541,7 @@ func (c *calConn) sendBook(data []interface{}) error {
 	return nil
 }
 
+// deleteBook will delete any ebook Calibre tells us to
 func (c *calConn) deleteBook(data []interface{}) error {
 	err := c.writeTCP([]byte(c.okStr))
 	if err != nil {
@@ -544,6 +578,9 @@ func (c *calConn) deleteBook(data []interface{}) error {
 	return c.writeCurrentMetadata()
 }
 
+// findCalibre performs the original search for a Calibre instance, using
+// UDP. Note, if there are multple calibre instances with their wireless
+// connection active, we select the first that responds.
 func (c *calConn) findCalibre(bcastPort int, calibreAddr chan<- string) {
 	localAddress := "0.0.0.0:0"
 	portStr := fmt.Sprintf("%d", bcastPort)
