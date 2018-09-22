@@ -556,6 +556,7 @@ func (c *calConn) deleteBook(data []interface{}) error {
 	for _, lp := range lpaths {
 		path := filepath.Join(c.clientOpts.DevStore.BookDir, lp)
 		os.Remove(path)
+		var removedMD map[string]interface{}
 		for i, md := range c.metadata {
 			if strings.Compare(md["lpath"].(string), lp) == 0 {
 				// Confirm to Calibre that we have deleted the correct book
@@ -563,18 +564,23 @@ func (c *calConn) deleteBook(data []interface{}) error {
 				uuidJSON, _ := json.Marshal(uuidMap)
 				payload := buildJSONpayload(uuidJSON, OK)
 				c.writeTCP(payload)
-				// Add metadata to the deleted metadata slice
-				c.DelMetadata = append(c.DelMetadata, md)
+				removedMD = md
 				// Delete the current book from the main metadata
 				c.metadata = delFromSlice(c.metadata, i)
 				break
 			}
 		}
+		addedThisSession := false
 		for i, md := range c.NewMetadata {
 			if strings.Compare(md["lpath"].(string), lp) == 0 {
 				c.NewMetadata = delFromSlice(c.NewMetadata, i)
+				addedThisSession = true
 				break
 			}
+		}
+		if !addedThisSession && removedMD != nil {
+			// Add metadata to the deleted metadata slice
+			c.DelMetadata = append(c.DelMetadata, removedMD)
 		}
 	}
 	return c.writeCurrentMetadata()
