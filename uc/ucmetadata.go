@@ -16,8 +16,3 @@ func (c *calConn) prepareBookCountJSON() []byte {
 	jsonData, _ := json.Marshal(bc)
 	return jsonData
 }
-
-func prepareBCdetail(bc BookCount) []byte {
-
-	return nil
-}
