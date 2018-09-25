@@ -379,6 +379,9 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	if data["wantsSendOkToSendbook"].(bool) {
+		c.writeTCP([]byte(c.okStr))
+	}
 	_, err = io.CopyN(w, c.tcpReader, int64(bookDet.Length))
 	if err != nil {
 		return err
