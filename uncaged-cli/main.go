@@ -151,7 +151,7 @@ func (cli *UncagedCLI) GetFreeSpace() uint64 {
 func (cli *UncagedCLI) SaveBook(md map[string]interface{}) (io.WriteCloser, error) {
 	bookExists := false
 	lpath := md["lpath"].(string)
-	bookPath := cli.bookDir + lpath
+	bookPath := filepath.Join(cli.bookDir, lpath)
 	dir, _ := filepath.Split(bookPath)
 	os.MkdirAll(dir, 0777)
 	bookFile, err := os.OpenFile(bookPath, os.O_WRONLY|os.O_CREATE, 0644)
@@ -173,7 +173,7 @@ func (cli *UncagedCLI) SaveBook(md map[string]interface{}) (io.WriteCloser, erro
 
 // GetBook provides an io.ReadCloser, from which UNCaGED can send the requested book to Calibre
 func (cli *UncagedCLI) GetBook(lpath, uuid string) (io.ReadCloser, error) {
-	bkPath := cli.bookDir + lpath
+	bkPath := filepath.Join(cli.bookDir, lpath)
 	bkFile, err := os.OpenFile(bkPath, os.O_RDONLY, 0644)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (cli *UncagedCLI) GetBook(lpath, uuid string) (io.ReadCloser, error) {
 // DeleteBook instructs the client to delete the specified book on the device
 // Error is returned if the book was unable to be deleted
 func (cli *UncagedCLI) DeleteBook(lpath, uuid string) error {
-	bkPath := cli.bookDir + lpath
+	bkPath := filepath.Join(cli.bookDir, lpath)
 	//dir, _ := filepath.Split(bkPath)
 	err := os.Remove(bkPath)
 	if err != nil {
