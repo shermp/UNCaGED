@@ -63,6 +63,14 @@ func (cli *UncagedCLI) loadMDfile() error {
 	return json.Unmarshal(mdJSON, &cli.metadata)
 }
 
+func (cli *UncagedCLI) saveMDfile() error {
+	mdJSON, err := json.MarshalIndent(cli.metadata, "", "    ")
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(cli.metadataFile, mdJSON, 0644)
+}
+
 func (cli *UncagedCLI) loadDriveInfoFile() error {
 	diJSON, err := ioutil.ReadFile(cli.drivinfoFile)
 	if err != nil {
@@ -76,6 +84,14 @@ func (cli *UncagedCLI) loadDriveInfoFile() error {
 		err = json.Unmarshal(diJSON, &cli.deviceInfo.DevInfo)
 	}
 	return err
+}
+
+func (cli *UncagedCLI) saveDriveInfoFile() error {
+	diJSON, err := json.MarshalIndent(cli.deviceInfo.DevInfo, "", "    ")
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(cli.drivinfoFile, diJSON, 0644)
 }
 
 // GetClientOptions returns all the client specific options required for UNCaGED
@@ -125,13 +141,7 @@ func (cli *UncagedCLI) GetDeviceInfo() uc.DeviceInfo {
 // struct DevInfo is modified.
 func (cli *UncagedCLI) SetDeviceInfo(devinfo uc.DeviceInfo) {
 	cli.deviceInfo = devinfo
-	diJSON, err := json.MarshalIndent(cli.deviceInfo.DevInfo, "", "    ")
-	if err != nil {
-		return
-	}
-	if len(diJSON) > 0 {
-		ioutil.WriteFile(cli.drivinfoFile, diJSON, 0644)
-	}
+	cli.saveDriveInfoFile()
 }
 
 // GetPassword gets a password from the user.
@@ -167,6 +177,9 @@ func (cli *UncagedCLI) SaveBook(md map[string]interface{}, lastBook bool) (io.Wr
 	}
 	if !bookExists {
 		cli.metadata = append(cli.metadata, md)
+	}
+	if lastBook {
+		cli.saveMDfile()
 	}
 	return bookFile, nil
 }
