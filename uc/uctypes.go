@@ -165,8 +165,8 @@ type CalibreInit struct {
 // DeviceInfo is used by calibre to determine some more device information, including
 // memory location code, uuids, last connect datetime etc.
 type DeviceInfo struct {
-	DeviceVersion string `json:"device_version"`
-	Version       string `json:"version"`
+	DeviceVersion string `json:"device_version" mapstructure:"device_version"`
+	Version       string `json:"version" mapstructure:"version"`
 	DevInfo       struct {
 		Prefix            string    `json:"prefix" mapstructure:"prefix"`
 		CalibreVersion    string    `json:"calibre_version" mapstructure:"calibre_version"`
@@ -175,7 +175,7 @@ type DeviceInfo struct {
 		DateLastConnected time.Time `json:"date_last_connected" mapstructure:"date_last_connected"`
 		LocationCode      string    `json:"location_code" mapstructure:"location_code"`
 		DeviceStoreUUID   string    `json:"device_store_uuid" mapstructure:"device_store_uuid"`
-	} `json:"device_info"`
+	} `json:"device_info" mapstructure:"device_info"`
 }
 
 // SendBook is used to hold information about each ebook as it arrives

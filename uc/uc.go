@@ -326,7 +326,7 @@ func (c *calConn) getDeviceInfo(data map[string]interface{}) error {
 // to place in the '.driveinfo.calibre' file
 func (c *calConn) setDeviceInfo(data map[string]interface{}) error {
 	var devInfo DeviceInfo
-	mapstructure.Decode(data, &devInfo)
+	mapstructure.Decode(data, &devInfo.DevInfo)
 	c.client.SetDeviceInfo(devInfo)
 	return c.writeTCP([]byte(c.okStr))
 }
