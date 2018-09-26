@@ -114,7 +114,7 @@ func (cli *UncagedCLI) GetDeviceBookList() []uc.BookCountDetails {
 		return nil
 	}
 	bookDet := make([]uc.BookCountDetails, mdLen)
-	for _, md := range cli.metadata {
+	for i, md := range cli.metadata {
 		lastMod, _ := time.Parse(time.RFC3339, md["last_modified"].(string))
 		pathComp := strings.Split(md["lpath"].(string), ".")
 		ext := "."
@@ -127,7 +127,7 @@ func (cli *UncagedCLI) GetDeviceBookList() []uc.BookCountDetails {
 			LastModified: lastMod,
 			Extension:    ext,
 		}
-		bookDet = append(bookDet, bd)
+		bookDet[i] = bd
 	}
 	return bookDet
 }
