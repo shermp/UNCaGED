@@ -99,6 +99,16 @@ func New(client Client) (*calConn, error) {
 	return c, retErr
 }
 
+// updateDB updates the UNCaGED DB
+func (c *calConn) updateDB() {
+	for i, b := range c.bookList {
+		dbEnt := UncagedDB{Lpath: b.Lpath, UUID: b.UUID}
+		c.db.Save(&dbEnt)
+		c.db.One("UUID", b.UUID, &dbEnt)
+		c.bookList[i].PriKey = dbEnt.PriKey
+	}
+}
+
 // Start starts a TCP connection with Calibre, then listens
 // for messages and pass them to the appropriate handler
 func (c *calConn) Start() (err error) {
