@@ -148,7 +148,7 @@ func (cli *UncagedCLI) GetFreeSpace() uint64 {
 
 // SaveBook saves a book with the provided metadata to the disk.
 // Implementations return an io.WriteCloser for UNCaGED to write the ebook to
-func (cli *UncagedCLI) SaveBook(md map[string]interface{}) (io.WriteCloser, error) {
+func (cli *UncagedCLI) SaveBook(md map[string]interface{}, lastBook bool) (io.WriteCloser, error) {
 	bookExists := false
 	lpath := md["lpath"].(string)
 	bookPath := filepath.Join(cli.bookDir, lpath)

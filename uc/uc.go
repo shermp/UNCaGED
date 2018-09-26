@@ -375,7 +375,11 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	if bookDet.ThisBook == 0 {
 		c.client.DisplayProgress(0)
 	}
-	w, err := c.client.SaveBook(data)
+	lastBook := false
+	if bookDet.ThisBook == (bookDet.TotalBooks - 1) {
+		lastBook = true
+	}
+	w, err := c.client.SaveBook(data, lastBook)
 	if err != nil {
 		return err
 	}

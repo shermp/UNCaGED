@@ -87,7 +87,8 @@ type Client interface {
 	GetFreeSpace() uint64
 	// SaveBook saves a book with the provided metadata to the disk.
 	// Implementations return an io.WriteCloser for UNCaGED to write the ebook to
-	SaveBook(md map[string]interface{}) (io.WriteCloser, error)
+	// lastBook informs the client that this is the last book for this transfer
+	SaveBook(md map[string]interface{}, lastBook bool) (io.WriteCloser, error)
 	// GetBook provides an io.ReadCloser, from which UNCaGED can send the requested book to Calibre
 	GetBook(lpath, uuid string) (io.ReadCloser, error)
 	// DeleteBook instructs the client to delete the specified book on the device
