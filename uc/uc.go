@@ -136,12 +136,16 @@ func (c *calConn) Start() (err error) {
 			err = c.getFreeSpace()
 		case GET_BOOK_COUNT:
 			err = c.getBookCount()
+		case SEND_BOOKLISTS:
+			err = c.updateDeviceMetadata(data)
 		case SET_LIBRARY_INFO:
 			err = c.writeTCP([]byte(c.okStr))
 		case SEND_BOOK:
 			err = c.sendBook(data)
 		case DELETE_BOOK:
 			err = c.deleteBook(data)
+		case GET_BOOK_FILE_SEGMENT:
+
 		case NOOP:
 			err = c.handleNoop(data)
 		}
@@ -363,6 +367,46 @@ func (c *calConn) getBookCount() error {
 			return err
 		}
 	}
+	return nil
+}
+
+// updateDeviceMetadata recieves updated metadata from Calibre, and
+// sends it to the client for updating
+func (c *calConn) updateDeviceMetadata(data map[string]interface{}) error {
+	// Double check that there will be new metadata incoming
+	if data["count"].(float64) == 0 {
+		return nil
+	}
+	// We read exactly 'count' metadata packets
+	count := int(data["count"].(float64))
+	md := make([]map[string]interface{}, count)
+	for i := 0; i < count; i++ {
+		var bkMD MetadataUpdate
+		// Stealing this from our Start() routine for now
+		payload, err := c.readTCP()
+		if err != nil {
+			if err == io.EOF {
+				c.client.Println("Calibre Disconnected.")
+				return nil
+			}
+			return errors.Wrap(err, "connection closed")
+		}
+		opcode, newdata, err := c.decodeCalibrePayload(payload)
+		if err != nil {
+			return errors.Wrap(err, "packet decoding failed")
+		}
+		// Opcode should be SEND_BOOK_METADATA. If it's not, something
+		// has gone rather wrong
+		if opcode != SEND_BOOK_METADATA {
+			return errors.New("unexpected calibre packet type")
+		}
+		err = mapstructure.Decode(newdata, &bkMD)
+		if err != nil {
+			return errors.Wrap(err, "unable to decode metadata packet")
+		}
+		md[i] = bkMD.Data
+	}
+	c.client.UpdateMetadata(md)
 	return nil
 }
 

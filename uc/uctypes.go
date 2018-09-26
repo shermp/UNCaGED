@@ -81,6 +81,9 @@ type Client interface {
 	// SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
 	// struct DevInfo is modified.
 	SetDeviceInfo(DeviceInfo)
+	// UpdateMetadata instructs the client to update their metadata according to the
+	// new slice of metadata maps
+	UpdateMetadata(mdList []map[string]interface{})
 	// GetPassword gets a password from the user.
 	GetPassword() string
 	// GetFreeSpace reports the amount of free storage space to Calibre
@@ -199,6 +202,14 @@ type DeleteBooks struct {
 // FreeSpace is used to send the available space in bytes to Calibre
 type FreeSpace struct {
 	FreeSpaceOnDevice uint64 `json:"free_space_on_device"`
+}
+
+// MetadataUpdate is used for sending updated metadata to the client
+type MetadataUpdate struct {
+	Count        int                    `mapstructure:"count"`
+	SupportsSync bool                   `mapstructure:"supportsSync"`
+	Data         map[string]interface{} `mapstructure:"data"`
+	Index        int                    `mapstructure:"index"`
 }
 
 // BookCount sends the number of books on device to Calibre

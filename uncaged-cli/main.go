@@ -144,6 +144,21 @@ func (cli *UncagedCLI) SetDeviceInfo(devinfo uc.DeviceInfo) {
 	cli.saveDriveInfoFile()
 }
 
+// UpdateMetadata instructs the client to update their metadata according to the
+// new slice of metadata maps
+func (cli *UncagedCLI) UpdateMetadata(mdList []map[string]interface{}) {
+	// This is ugly. Is there a better way to do it?
+	for _, newMD := range mdList {
+		newMDlpath := newMD["lpath"].(string)
+		newMDuuid := newMD["uuid"].(string)
+		for j, md := range cli.metadata {
+			if newMDlpath == md["lpath"].(string) && newMDuuid == md["uuid"].(string) {
+				cli.metadata[j] = newMD
+			}
+		}
+	}
+}
+
 // GetPassword gets a password from the user.
 func (cli *UncagedCLI) GetPassword() string {
 	// For testing purposes ONLY
