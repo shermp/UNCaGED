@@ -157,6 +157,7 @@ func (cli *UncagedCLI) UpdateMetadata(mdList []map[string]interface{}) {
 			}
 		}
 	}
+	cli.saveMDfile()
 }
 
 // GetPassword gets a password from the user.
