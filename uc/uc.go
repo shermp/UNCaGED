@@ -112,6 +112,10 @@ func (c *calConn) Start() (err error) {
 	for {
 		payload, err := c.readTCP()
 		if err != nil {
+			if err == io.EOF {
+				c.client.Println("Calibre Disconnected.")
+				return nil
+			}
 			return errors.Wrap(err, "connection closed")
 		}
 		opcode, data, err := c.decodeCalibrePayload(payload)
@@ -218,9 +222,7 @@ func (c *calConn) readTCP() ([]byte, error) {
 		return nil, errors.Wrap(err, "connection timed out!")
 	}
 	if err != nil {
-		if err == io.EOF {
-			return nil, nil
-		}
+		return nil, err
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	// Put that '[' character back into the buffer. Our JSON
