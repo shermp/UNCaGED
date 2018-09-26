@@ -466,6 +466,9 @@ func (c *calConn) deleteBook(data map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
+		calConfirm, _ := json.Marshal(map[string]string{"uuid": dbEnt.UUID})
+		payload := buildJSONpayload(calConfirm, OK)
+		c.writeTCP(payload)
 		c.db.DeleteStruct(&dbEnt)
 	}
 	return nil
