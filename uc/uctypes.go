@@ -92,8 +92,10 @@ type Client interface {
 	// Implementations return an io.WriteCloser for UNCaGED to write the ebook to
 	// lastBook informs the client that this is the last book for this transfer
 	SaveBook(md map[string]interface{}, lastBook bool) (io.WriteCloser, error)
-	// GetBook provides an io.ReadCloser, from which UNCaGED can send the requested book to Calibre
-	GetBook(lpath, uuid string) (io.ReadCloser, error)
+	// GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
+	// NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
+	// change at any time, so best to handle it anyway.
+	GetBook(lpath, uuid string, filePos int64) (io.ReadCloser, int64, error)
 	// DeleteBook instructs the client to delete the specified book on the device
 	// Error is returned if the book was unable to be deleted
 	DeleteBook(lpath, uuid string) error
@@ -227,4 +229,11 @@ type BookCountDetails struct {
 	Extension    string    `json:"extension"`
 	Lpath        string    `json:"lpath"`
 	LastModified time.Time `json:"last_modified"`
+}
+
+// GetBook prepares Calibre for the book we are about to send
+type GetBook struct {
+	WillStream       bool  `json:"willStream"`
+	WillStreamBinary bool  `json:"willStreamBinary"`
+	FileLength       int64 `json:"fileLength"`
 }

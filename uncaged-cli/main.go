@@ -200,13 +200,20 @@ func (cli *UncagedCLI) SaveBook(md map[string]interface{}, lastBook bool) (io.Wr
 }
 
 // GetBook provides an io.ReadCloser, from which UNCaGED can send the requested book to Calibre
-func (cli *UncagedCLI) GetBook(lpath, uuid string) (io.ReadCloser, error) {
+func (cli *UncagedCLI) GetBook(lpath, uuid string, filePos int64) (io.ReadCloser, int64, error) {
 	bkPath := filepath.Join(cli.bookDir, lpath)
 	bkFile, err := os.OpenFile(bkPath, os.O_RDONLY, 0644)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
-	return bkFile, nil
+	fi, err := bkFile.Stat()
+	if err != nil {
+		return nil, -1, err
+	}
+	if filePos > 0 {
+		bkFile.Seek(filePos, os.SEEK_SET)
+	}
+	return bkFile, fi.Size(), nil
 }
 
 // DeleteBook instructs the client to delete the specified book on the device

@@ -39,6 +39,7 @@ import (
 )
 
 const tcpDeadlineTimeout = 15
+const bookPacketContentLen = 4096
 
 // buildJSONpayload builds a payload in the format that Calibre expects
 func buildJSONpayload(jsonBytes []byte, op calOpCode) []byte {
@@ -145,7 +146,7 @@ func (c *calConn) Start() (err error) {
 		case DELETE_BOOK:
 			err = c.deleteBook(data)
 		case GET_BOOK_FILE_SEGMENT:
-
+			err = c.getBook(data)
 		case NOOP:
 			err = c.handleNoop(data)
 		}
@@ -295,7 +296,7 @@ func (c *calConn) getInitInfo(data map[string]interface{}) error {
 	}
 	initInfo := CalibreInit{
 		VersionOK:               true,
-		MaxBookContentPacketLen: 4096,
+		MaxBookContentPacketLen: bookPacketContentLen,
 		AcceptedExtensions:      c.clientOpts.SupportedExt,
 		ExtensionPathLengths:    extPathLen,
 		PasswordHash:            passHash,
@@ -435,9 +436,11 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	}
 	_, err = io.CopyN(w, c.tcpReader, int64(bookDet.Length))
 	if err != nil {
+		w.Close()
 		return err
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+	w.Close()
 	dbEnt := UncagedDB{Lpath: bookDet.Lpath}
 	dbEnt.UUID = bookDet.Metadata["uuid"].(string)
 	c.db.Save(&dbEnt)
@@ -465,6 +468,39 @@ func (c *calConn) deleteBook(data map[string]interface{}) error {
 		}
 		c.db.DeleteStruct(&dbEnt)
 	}
+	return nil
+}
+
+func (c *calConn) getBook(data map[string]interface{}) error {
+	if !data["canStreamBinary"].(bool) || !data["canStream"].(bool) {
+		return errors.New("calibre version does not support binary streaming")
+	}
+	lpath := data["lpath"].(string)
+	filePos := int64(data["position"].(float64))
+	dbEnt := UncagedDB{}
+	err := c.db.One("Lpath", lpath, &dbEnt)
+	if err != nil {
+		return errors.Wrap(err, "could not get book from db")
+	}
+	bk, len, err := c.client.GetBook(lpath, dbEnt.UUID, filePos)
+	if err != nil {
+		return errors.Wrap(err, "could not open book file")
+	}
+	gb := GetBook{
+		WillStream:       true,
+		WillStreamBinary: true,
+		FileLength:       len,
+	}
+	gbJSON, _ := json.Marshal(gb)
+	payload := buildJSONpayload(gbJSON, OK)
+	c.writeTCP(payload)
+	_, err = io.CopyN(c.tcpConn, bk, len)
+	if err != nil {
+		bk.Close()
+		return errors.Wrap(err, "error sending book to Calibre")
+	}
+	bk.Close()
+	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	return nil
 }
 
