@@ -123,6 +123,9 @@ func (c *calConn) Start() (err error) {
 	for {
 		opcode, data, err := c.readDecodeCalibrePayload()
 		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
 			return errors.Wrap(err, "packet reading failed")
 		}
 
@@ -153,6 +156,9 @@ func (c *calConn) Start() (err error) {
 			err = c.handleNoop(data)
 		}
 		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
 			return err
 		}
 	}
@@ -175,8 +181,8 @@ func (c *calConn) readDecodeCalibrePayload() (calOpCode, map[string]interface{},
 	payload, err := c.readTCP()
 	if err != nil {
 		if err == io.EOF {
-			c.client.Println("Calibre Disconnected.")
-			return NOOP, nil, nil
+			c.client.Println("Calibre Disconnected")
+			return NOOP, nil, err
 		}
 		return NOOP, nil, errors.Wrap(err, "connection closed")
 	}
@@ -294,6 +300,9 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 		for i := 0; i < count; i++ {
 			opcode, newdata, err := c.readDecodeCalibrePayload()
 			if err != nil {
+				if err == io.EOF {
+					return err
+				}
 				return errors.Wrap(err, "packet reading failed")
 			}
 			dbEnt := UncagedDB{}
@@ -472,6 +481,9 @@ func (c *calConn) updateDeviceMetadata(data map[string]interface{}) error {
 		var bkMD MetadataUpdate
 		opcode, newdata, err := c.readDecodeCalibrePayload()
 		if err != nil {
+			if err == io.EOF {
+				return err
+			}
 			return errors.Wrap(err, "packet reading failed")
 		}
 
