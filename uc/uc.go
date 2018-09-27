@@ -285,7 +285,9 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 		count := 0
 		if val, exist := data["count"]; exist {
 			count = int(val.(float64))
-		} else {
+		}
+		// We don't do anything if count is zero
+		if count == 0 {
 			return nil
 		}
 		bookList := make([]BookID, count)
