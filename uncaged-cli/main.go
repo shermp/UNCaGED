@@ -132,6 +132,23 @@ func (cli *UncagedCLI) GetDeviceBookList() []uc.BookCountDetails {
 	return bookDet
 }
 
+// GetMetadataList sends complete metadata for the books listed in lpaths, or for
+// all books on device if lpaths is empty
+func (cli *UncagedCLI) GetMetadataList(books []uc.BookID) []map[string]interface{} {
+	if len(books) == 0 {
+		return cli.metadata
+	}
+	mdList := []map[string]interface{}{}
+	for _, bk := range books {
+		for _, md := range cli.metadata {
+			if bk.Lpath == md["lpath"].(string) {
+				mdList = append(mdList, md)
+			}
+		}
+	}
+	return mdList
+}
+
 // GetDeviceInfo asks the client for information about the drive info to use
 func (cli *UncagedCLI) GetDeviceInfo() uc.DeviceInfo {
 	return cli.deviceInfo
@@ -201,8 +218,8 @@ func (cli *UncagedCLI) SaveBook(md map[string]interface{}, lastBook bool) (io.Wr
 }
 
 // GetBook provides an io.ReadCloser, from which UNCaGED can send the requested book to Calibre
-func (cli *UncagedCLI) GetBook(lpath, uuid string, filePos int64) (io.ReadCloser, int64, error) {
-	bkPath := filepath.Join(cli.bookDir, lpath)
+func (cli *UncagedCLI) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, int64, error) {
+	bkPath := filepath.Join(cli.bookDir, book.Lpath)
 	bkFile, err := os.OpenFile(bkPath, os.O_RDONLY, 0644)
 	if err != nil {
 		return nil, -1, err
@@ -219,8 +236,8 @@ func (cli *UncagedCLI) GetBook(lpath, uuid string, filePos int64) (io.ReadCloser
 
 // DeleteBook instructs the client to delete the specified book on the device
 // Error is returned if the book was unable to be deleted
-func (cli *UncagedCLI) DeleteBook(lpath, uuid string) error {
-	bkPath := filepath.Join(cli.bookDir, lpath)
+func (cli *UncagedCLI) DeleteBook(book uc.BookID) error {
+	bkPath := filepath.Join(cli.bookDir, book.Lpath)
 	//dir, _ := filepath.Split(bkPath)
 	err := os.Remove(bkPath)
 	if err != nil {

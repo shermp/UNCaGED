@@ -121,17 +121,9 @@ func (c *calConn) Start() (err error) {
 	// Connect to Calibre
 	// Keep reading untill the connection is closed
 	for {
-		payload, err := c.readTCP()
+		opcode, data, err := c.readDecodeCalibrePayload()
 		if err != nil {
-			if err == io.EOF {
-				c.client.Println("Calibre Disconnected.")
-				return nil
-			}
-			return errors.Wrap(err, "connection closed")
-		}
-		opcode, data, err := c.decodeCalibrePayload(payload)
-		if err != nil {
-			return errors.Wrap(err, "packet decoding failed")
+			return errors.Wrap(err, "packet reading failed")
 		}
 
 		switch opcode {
@@ -146,7 +138,7 @@ func (c *calConn) Start() (err error) {
 		case FREE_SPACE:
 			err = c.getFreeSpace()
 		case GET_BOOK_COUNT:
-			err = c.getBookCount()
+			err = c.getBookCount(data)
 		case SEND_BOOKLISTS:
 			err = c.updateDeviceMetadata(data)
 		case SET_LIBRARY_INFO:
@@ -177,6 +169,22 @@ func (c *calConn) decodeCalibrePayload(payload []byte) (calOpCode, map[string]in
 	opcode := calOpCode(calibreDat[0].(float64))
 	value := calibreDat[1].(map[string]interface{})
 	return opcode, value, nil
+}
+
+func (c *calConn) readDecodeCalibrePayload() (calOpCode, map[string]interface{}, error) {
+	payload, err := c.readTCP()
+	if err != nil {
+		if err == io.EOF {
+			c.client.Println("Calibre Disconnected.")
+			return NOOP, nil, nil
+		}
+		return NOOP, nil, errors.Wrap(err, "connection closed")
+	}
+	opcode, data, err := c.decodeCalibrePayload(payload)
+	if err != nil {
+		return NOOP, nil, errors.Wrap(err, "packet decoding failed")
+	}
+	return opcode, data, nil
 }
 
 // hashCalPassword generates a string representation in hex of the password
@@ -273,6 +281,34 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		count := 0
+		if val, exist := data["count"]; exist {
+			count = int(val.(float64))
+		} else {
+			return nil
+		}
+		bookList := make([]BookID, count)
+		for i := 0; i < count; i++ {
+			opcode, newdata, err := c.readDecodeCalibrePayload()
+			if err != nil {
+				return errors.Wrap(err, "packet reading failed")
+			}
+			dbEnt := UncagedDB{}
+			if opcode != NOOP {
+				return errors.New("noop expected")
+			}
+			err = c.db.One("PriKey", int(newdata["priKey"].(float64)), &dbEnt)
+			if err != nil {
+				return errors.Wrap(err, "could not find book in db")
+			}
+			bID := BookID{Lpath: dbEnt.Lpath, UUID: dbEnt.UUID}
+			bookList[i] = bID
+		}
+		err := c.resendMetadataList(bookList)
+		if err != nil {
+			return errors.Wrap(err, "error resending metadata")
+		}
 	}
 	return nil
 }
@@ -360,19 +396,58 @@ func (c *calConn) getFreeSpace() error {
 
 // getBookCount sends Calibre a list of ebooks currently on the device.
 // It is up to the client to decide how this list is derived
-func (c *calConn) getBookCount() error {
+func (c *calConn) getBookCount(data map[string]interface{}) error {
 	bc := BookCount{Count: len(c.bookList), WillStream: true, WillScan: true}
-	bcJSON, _ := json.Marshal(bc)
-	payload := buildJSONpayload(bcJSON, OK)
-	// Send our count
-	err := c.writeTCP(payload)
-	if err != nil {
-		return err
-	}
+	if data["willUseCachedMetadata"].(bool) {
+		bcJSON, _ := json.Marshal(bc)
+		payload := buildJSONpayload(bcJSON, OK)
+		// Send our count
+		err := c.writeTCP(payload)
+		if err != nil {
+			return err
+		}
 
-	for _, b := range c.bookList {
-		bJSON, _ := json.Marshal(b)
-		payload = buildJSONpayload(bJSON, OK)
+		for _, b := range c.bookList {
+			bJSON, _ := json.Marshal(b)
+			payload = buildJSONpayload(bJSON, OK)
+			err := c.writeTCP(payload)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		md := c.client.GetMetadataList([]BookID{})
+		bc.Count = len(md)
+		bcJSON, _ := json.Marshal(bc)
+		payload := buildJSONpayload(bcJSON, OK)
+		// Send our count
+		err := c.writeTCP(payload)
+		if err != nil {
+			return err
+		}
+		for _, m := range md {
+			mJSON, _ := json.Marshal(m)
+			payload := buildJSONpayload(mJSON, OK)
+			err := c.writeTCP(payload)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// resendMetadataList is called whenever using cached metadata, and
+// Calibre requests a complete metadata listing (eg, when using a
+// different Calibre library)
+func (c *calConn) resendMetadataList(bookList []BookID) error {
+	mdList := c.client.GetMetadataList(bookList)
+	if len(mdList) == 0 {
+		return c.writeTCP([]byte(c.okStr))
+	}
+	for _, md := range mdList {
+		mJSON, _ := json.Marshal(md)
+		payload := buildJSONpayload(mJSON, OK)
 		err := c.writeTCP(payload)
 		if err != nil {
 			return err
@@ -393,19 +468,11 @@ func (c *calConn) updateDeviceMetadata(data map[string]interface{}) error {
 	md := make([]map[string]interface{}, count)
 	for i := 0; i < count; i++ {
 		var bkMD MetadataUpdate
-		// Stealing this from our Start() routine for now
-		payload, err := c.readTCP()
+		opcode, newdata, err := c.readDecodeCalibrePayload()
 		if err != nil {
-			if err == io.EOF {
-				c.client.Println("Calibre Disconnected.")
-				return nil
-			}
-			return errors.Wrap(err, "connection closed")
+			return errors.Wrap(err, "packet reading failed")
 		}
-		opcode, newdata, err := c.decodeCalibrePayload(payload)
-		if err != nil {
-			return errors.Wrap(err, "packet decoding failed")
-		}
+
 		// Opcode should be SEND_BOOK_METADATA. If it's not, something
 		// has gone rather wrong
 		if opcode != SEND_BOOK_METADATA {
@@ -472,7 +539,8 @@ func (c *calConn) deleteBook(data map[string]interface{}) error {
 		if err != nil {
 			return errors.New("lpath not in db to delete")
 		}
-		err = c.client.DeleteBook(dbEnt.Lpath, dbEnt.UUID)
+		bID := BookID{Lpath: dbEnt.Lpath, UUID: dbEnt.UUID}
+		err = c.client.DeleteBook(bID)
 		if err != nil {
 			return err
 		}
@@ -495,7 +563,8 @@ func (c *calConn) getBook(data map[string]interface{}) error {
 	if err != nil {
 		return errors.Wrap(err, "could not get book from db")
 	}
-	bk, len, err := c.client.GetBook(lpath, dbEnt.UUID, filePos)
+	bID := BookID{Lpath: lpath, UUID: dbEnt.UUID}
+	bk, len, err := c.client.GetBook(bID, filePos)
 	if err != nil {
 		return errors.Wrap(err, "could not open book file")
 	}

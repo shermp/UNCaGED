@@ -76,6 +76,9 @@ type Client interface {
 	// GetDeviceBookList returns a slice of all the books currently on the device
 	// A nil slice is interpreted has having no books on the device
 	GetDeviceBookList() []BookCountDetails
+	// GetMetadataList sends complete metadata for the books listed in lpaths, or for
+	// all books on device if lpaths is empty
+	GetMetadataList(books []BookID) []map[string]interface{}
 	// GetDeviceInfo asks the client for information about the drive info to use
 	GetDeviceInfo() DeviceInfo
 	// SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
@@ -95,10 +98,10 @@ type Client interface {
 	// GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
 	// NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
 	// change at any time, so best to handle it anyway.
-	GetBook(lpath, uuid string, filePos int64) (io.ReadCloser, int64, error)
+	GetBook(book BookID, filePos int64) (io.ReadCloser, int64, error)
 	// DeleteBook instructs the client to delete the specified book on the device
 	// Error is returned if the book was unable to be deleted
-	DeleteBook(lpath, uuid string) error
+	DeleteBook(book BookID) error
 	// Println is used to print messages to the users display. Usage is identical to
 	// that of fmt.Println()
 	Println(a ...interface{}) (n int, err error)
@@ -199,6 +202,13 @@ type SendBook struct {
 // DeleteBooks is a list of lpaths to delete
 type DeleteBooks struct {
 	Lpaths []string `mapstructure:"lpaths"`
+}
+
+// BookID identifies one book. Clients may use either field as their
+// preferred identification method
+type BookID struct {
+	Lpath string
+	UUID  string
 }
 
 // FreeSpace is used to send the available space in bytes to Calibre
