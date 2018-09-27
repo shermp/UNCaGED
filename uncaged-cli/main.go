@@ -243,6 +243,15 @@ func (cli *UncagedCLI) DeleteBook(book uc.BookID) error {
 	if err != nil {
 		return err
 	}
+	for i, md := range cli.metadata {
+		if md["lpath"].(string) == book.Lpath {
+			cli.metadata[i] = cli.metadata[len(cli.metadata)-1]
+			cli.metadata[len(cli.metadata)-1] = nil
+			cli.metadata = cli.metadata[:len(cli.metadata)-1]
+			break
+		}
+	}
+	cli.saveMDfile()
 	return nil
 }
 
