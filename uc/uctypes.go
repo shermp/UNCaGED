@@ -83,7 +83,7 @@ type Client interface {
 	GetDeviceInfo() DeviceInfo
 	// SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
 	// struct DevInfo is modified.
-	SetDeviceInfo(DeviceInfo)
+	SetDeviceInfo(devInfo DeviceInfo)
 	// UpdateMetadata instructs the client to update their metadata according to the
 	// new slice of metadata maps
 	UpdateMetadata(mdList []map[string]interface{})

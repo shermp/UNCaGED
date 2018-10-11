@@ -156,8 +156,8 @@ func (cli *UncagedCLI) GetDeviceInfo() uc.DeviceInfo {
 
 // SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
 // struct DevInfo is modified.
-func (cli *UncagedCLI) SetDeviceInfo(devinfo uc.DeviceInfo) {
-	cli.deviceInfo = devinfo
+func (cli *UncagedCLI) SetDeviceInfo(devInfo uc.DeviceInfo) {
+	cli.deviceInfo = devInfo
 	cli.saveDriveInfoFile()
 }
 
@@ -180,7 +180,7 @@ func (cli *UncagedCLI) UpdateMetadata(mdList []map[string]interface{}) {
 // GetPassword gets a password from the user.
 func (cli *UncagedCLI) GetPassword() string {
 	// For testing purposes ONLY
-	return "testpass"
+	return "uncaged"
 }
 
 // GetFreeSpace reports the amount of free storage space to Calibre
