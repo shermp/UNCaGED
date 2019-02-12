@@ -162,8 +162,8 @@ func (ucdb *UncagedDB) removeEntry(searchType ucdbSearchType, value interface{})
 // initDB initialises the database with a new booklist
 func (ucdb *UncagedDB) initDB(bl []BookCountDetails) {
 	ucdb.booklist = bl
-	for _, b := range ucdb.booklist {
-		b.PriKey = ucdb.newPriKey()
+	for i := range ucdb.booklist {
+		ucdb.booklist[i].PriKey = ucdb.newPriKey()
 	}
 }
 
