@@ -122,9 +122,6 @@ type calConn struct {
 		calibreVers    string
 		calibreLibUUID string
 	}
-	// metadata       []map[string]interface{}
-	// NewMetadata    []map[string]interface{}
-	// DelMetadata    []map[string]interface{}
 	deviceInfo     DeviceInfo
 	okStr          string
 	serverPassword string
