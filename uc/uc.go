@@ -140,8 +140,18 @@ func (ucdb *UncagedDB) length() int {
 }
 
 func (ucdb *UncagedDB) addEntry(md map[string]interface{}) error {
+	// mapstructure.Decode() does not decode time (in strings) to time.Time, hence the need
+	// to create a decoder config and decoder, using a provided hook.
 	var bd BookCountDetails
-	err := mapstructure.Decode(md, &bd)
+	config := mapstructure.DecoderConfig{
+		DecodeHook: mapstructure.StringToTimeHookFunc(time.RFC3339),
+		Result:     &bd,
+	}
+	decoder, err := mapstructure.NewDecoder(&config)
+	if err != nil {
+		return err
+	}
+	decoder.Decode(md)
 	if err != nil {
 		return errors.Wrap(err, "could not decode metadata")
 	}
@@ -446,7 +456,18 @@ func (c *calConn) getDeviceInfo(data map[string]interface{}) error {
 // to place in the '.driveinfo.calibre' file
 func (c *calConn) setDeviceInfo(data map[string]interface{}) error {
 	var devInfo DeviceInfo
-	mapstructure.Decode(data, &devInfo.DevInfo)
+	config := mapstructure.DecoderConfig{
+		DecodeHook: mapstructure.StringToTimeHookFunc(time.RFC3339),
+		Result:     &devInfo.DevInfo,
+	}
+	decoder, err := mapstructure.NewDecoder(&config)
+	if err != nil {
+		return err
+	}
+	decoder.Decode(data)
+	if err != nil {
+		return err
+	}
 	c.client.SetDeviceInfo(devInfo)
 	return c.writeTCP([]byte(c.okStr))
 }
