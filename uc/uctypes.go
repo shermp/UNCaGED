@@ -25,12 +25,11 @@ import (
 	"io"
 	"net"
 	"time"
-
-	"github.com/asdine/storm"
 )
 
 type calOpCode int
 type calMsgCode int
+type ucdbSearchType int
 
 // Calibre opcodes
 const (
@@ -62,11 +61,16 @@ const (
 	MESSAGE_SHOW_TOAST     = 3
 )
 
+// ucdb search types
+const (
+	PriKey ucdbSearchType = iota
+	Lpath
+)
+
 // UncagedDB is the structure used by UNCaGED's internal database
 type UncagedDB struct {
-	PriKey int    `storm:"id,increment"`
-	Lpath  string `storm:"index,unique"`
-	UUID   string `storm:"index,unique"`
+	nextKey  int
+	booklist []BookCountDetails
 }
 
 // Client is the interface that specific implementations of UNCaGED must implement.
@@ -118,16 +122,15 @@ type calConn struct {
 		calibreVers    string
 		calibreLibUUID string
 	}
-	metadata       []map[string]interface{}
-	NewMetadata    []map[string]interface{}
-	DelMetadata    []map[string]interface{}
-	bookList       []BookCountDetails
+	// metadata       []map[string]interface{}
+	// NewMetadata    []map[string]interface{}
+	// DelMetadata    []map[string]interface{}
 	deviceInfo     DeviceInfo
 	okStr          string
 	serverPassword string
 	tcpConn        net.Conn
 	tcpReader      *bufio.Reader
-	db             *storm.DB
+	ucdb           *UncagedDB
 	client         Client
 	transferCount  int
 }
@@ -235,10 +238,10 @@ type BookCount struct {
 // on device
 type BookCountDetails struct {
 	PriKey       int       `json:"priKey"`
-	UUID         string    `json:"uuid"`
-	Extension    string    `json:"extension"`
-	Lpath        string    `json:"lpath"`
-	LastModified time.Time `json:"last_modified"`
+	UUID         string    `json:"uuid" mapstructure:"uuid"`
+	Extension    string    `json:"extension" mapstructure:"extension"`
+	Lpath        string    `json:"lpath" mapstructure:"lpath"`
+	LastModified time.Time `json:"last_modified" mapstructure:"last_modified"`
 }
 
 // GetBook prepares Calibre for the book we are about to send

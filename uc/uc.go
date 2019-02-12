@@ -33,7 +33,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/asdine/storm"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 )
@@ -54,14 +53,6 @@ func buildJSONpayload(jsonBytes []byte, op calOpCode) []byte {
 	return payload
 }
 
-// Convenience function to remove element(s) from a JSON array
-func delFromSlice(slice []map[string]interface{}, index int) []map[string]interface{} {
-	slice[index] = slice[len(slice)-1]
-	slice[len(slice)-1] = nil
-	slice = slice[:len(slice)-1]
-	return slice
-}
-
 // New initilizes the calibre connection, and returns it
 // An error is returned if a Calibre instance cannot be found
 func New(client Client) (*calConn, error) {
@@ -72,13 +63,12 @@ func New(client Client) (*calConn, error) {
 	c.clientOpts = c.client.GetClientOptions()
 	c.transferCount = 0
 	c.okStr = "6[0,{}]"
-	c.db, retErr = storm.Open("uncagedMeta.db")
 	if retErr != nil {
 		return nil, retErr
 	}
-	c.bookList = c.client.GetDeviceBookList()
+	c.ucdb = &UncagedDB{}
+	c.ucdb.initDB(c.client.GetDeviceBookList())
 	c.deviceInfo = c.client.GetDeviceInfo()
-	c.updateDB()
 	udpReply := make(chan string)
 	// Calibre listens for a 'hello' UDP packet on the following
 	// five ports. We try all five ports concurrently
@@ -99,20 +89,87 @@ func New(client Client) (*calConn, error) {
 	return c, retErr
 }
 
-// updateDB updates the UNCaGED DB
-func (c *calConn) updateDB() {
-	for i, b := range c.bookList {
-		dbEnt := UncagedDB{Lpath: b.Lpath, UUID: b.UUID}
-		c.db.Save(&dbEnt)
-		c.db.One("UUID", b.UUID, &dbEnt)
-		c.bookList[i].PriKey = dbEnt.PriKey
+// newPriKey returns a new, unique primary key
+func (ucdb *UncagedDB) newPriKey() int {
+	key := ucdb.nextKey
+	ucdb.nextKey++
+	return key
+}
+
+// findByPriKey searches the 'db' for a record via a key. If no record found,
+// error will not be nil.
+func (ucdb *UncagedDB) find(searchType ucdbSearchType, value interface{}) (int, BookCountDetails, error) {
+	bd := BookCountDetails{}
+	var index int
+	var err error
+	err = errors.New("no match")
+	// Simple linear search. Not very efficient, be we shouldn't be doing this too often
+	switch searchType {
+	case PriKey:
+		if k, ok := value.(int); ok {
+			for i, b := range ucdb.booklist {
+				if b.PriKey == k {
+					index = i
+					bd = b
+					err = nil
+					break
+				}
+			}
+		} else {
+			err = errors.New("invalid type. Expecting integer")
+		}
+	case Lpath:
+		if l, ok := value.(string); ok {
+			for i, b := range ucdb.booklist {
+				if b.Lpath == l {
+					index = i
+					bd = b
+					err = nil
+					break
+				}
+			}
+		} else {
+			err = errors.New("invalid type. Expecting string")
+		}
+	}
+	return index, bd, err
+}
+
+func (ucdb *UncagedDB) length() int {
+	return len(ucdb.booklist)
+}
+
+func (ucdb *UncagedDB) addEntry(md map[string]interface{}) error {
+	var bd BookCountDetails
+	err := mapstructure.Decode(md, &bd)
+	if err != nil {
+		return errors.Wrap(err, "could not decode metadata")
+	}
+	bd.PriKey = ucdb.newPriKey()
+	ucdb.booklist = append(ucdb.booklist, bd)
+	return nil
+}
+
+func (ucdb *UncagedDB) removeEntry(searchType ucdbSearchType, value interface{}) error {
+	index, _, err := ucdb.find(searchType, value)
+	if err != nil {
+		return errors.Wrap(err, "search failed")
+	}
+	ucdb.booklist = append(ucdb.booklist[:index], ucdb.booklist[index+1:]...)
+	return nil
+}
+
+// initDB initialises the database with a new booklist
+func (ucdb *UncagedDB) initDB(bl []BookCountDetails) {
+	ucdb.booklist = bl
+	for _, b := range ucdb.booklist {
+		b.PriKey = ucdb.newPriKey()
 	}
 }
 
 // Start starts a TCP connection with Calibre, then listens
 // for messages and pass them to the appropriate handler
 func (c *calConn) Start() (err error) {
-	defer c.db.Close()
 	err = c.establishTCP()
 	if err != nil {
 		return errors.Wrap(err, "establishing connection failed")
@@ -305,15 +362,14 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 				}
 				return errors.Wrap(err, "packet reading failed")
 			}
-			dbEnt := UncagedDB{}
 			if opcode != NOOP {
 				return errors.New("noop expected")
 			}
-			err = c.db.One("PriKey", int(newdata["priKey"].(float64)), &dbEnt)
+			_, bd, err := c.ucdb.find(PriKey, int(newdata["priKey"].(float64)))
 			if err != nil {
 				return errors.Wrap(err, "could not find book in db")
 			}
-			bID := BookID{Lpath: dbEnt.Lpath, UUID: dbEnt.UUID}
+			bID := BookID{Lpath: bd.Lpath, UUID: bd.UUID}
 			bookList[i] = bID
 		}
 		err := c.resendMetadataList(bookList)
@@ -408,7 +464,7 @@ func (c *calConn) getFreeSpace() error {
 // getBookCount sends Calibre a list of ebooks currently on the device.
 // It is up to the client to decide how this list is derived
 func (c *calConn) getBookCount(data map[string]interface{}) error {
-	bc := BookCount{Count: len(c.bookList), WillStream: true, WillScan: true}
+	bc := BookCount{Count: c.ucdb.length(), WillStream: true, WillScan: true}
 	if data["willUseCachedMetadata"].(bool) {
 		bcJSON, _ := json.Marshal(bc)
 		payload := buildJSONpayload(bcJSON, OK)
@@ -418,7 +474,7 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 			return err
 		}
 
-		for _, b := range c.bookList {
+		for _, b := range c.ucdb.booklist {
 			bJSON, _ := json.Marshal(b)
 			payload = buildJSONpayload(bJSON, OK)
 			err := c.writeTCP(payload)
@@ -517,8 +573,7 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	if bookDet.ThisBook == (bookDet.TotalBooks - 1) {
 		lastBook = true
 	}
-	md := data["metadata"].(map[string]interface{})
-	w, err := c.client.SaveBook(md, lastBook)
+	w, err := c.client.SaveBook(bookDet.Metadata, lastBook)
 	if err != nil {
 		return err
 	}
@@ -532,9 +587,7 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	w.Close()
-	dbEnt := UncagedDB{Lpath: bookDet.Lpath}
-	dbEnt.UUID = bookDet.Metadata["uuid"].(string)
-	c.db.Save(&dbEnt)
+	c.ucdb.addEntry(bookDet.Metadata)
 	c.client.DisplayProgress((bookDet.ThisBook * 100) / bookDet.TotalBooks)
 	return nil
 }
@@ -548,20 +601,19 @@ func (c *calConn) deleteBook(data map[string]interface{}) error {
 	var delBooks DeleteBooks
 	mapstructure.Decode(data, &delBooks)
 	for _, lp := range delBooks.Lpaths {
-		var dbEnt UncagedDB
-		err := c.db.One("Lpath", lp, &dbEnt)
+		_, bd, err := c.ucdb.find(Lpath, lp)
 		if err != nil {
 			return errors.New("lpath not in db to delete")
 		}
-		bID := BookID{Lpath: dbEnt.Lpath, UUID: dbEnt.UUID}
+		bID := BookID{Lpath: bd.Lpath, UUID: bd.UUID}
 		err = c.client.DeleteBook(bID)
 		if err != nil {
 			return err
 		}
-		calConfirm, _ := json.Marshal(map[string]string{"uuid": dbEnt.UUID})
+		calConfirm, _ := json.Marshal(map[string]string{"uuid": bd.UUID})
 		payload := buildJSONpayload(calConfirm, OK)
 		c.writeTCP(payload)
-		c.db.DeleteStruct(&dbEnt)
+		c.ucdb.removeEntry(Lpath, lp)
 	}
 	return nil
 }
@@ -572,12 +624,11 @@ func (c *calConn) getBook(data map[string]interface{}) error {
 	}
 	lpath := data["lpath"].(string)
 	filePos := int64(data["position"].(float64))
-	dbEnt := UncagedDB{}
-	err := c.db.One("Lpath", lpath, &dbEnt)
+	_, bd, err := c.ucdb.find(Lpath, lpath)
 	if err != nil {
 		return errors.Wrap(err, "could not get book from db")
 	}
-	bID := BookID{Lpath: lpath, UUID: dbEnt.UUID}
+	bID := BookID{Lpath: lpath, UUID: bd.UUID}
 	bk, len, err := c.client.GetBook(bID, filePos)
 	if err != nil {
 		return errors.Wrap(err, "could not open book file")
