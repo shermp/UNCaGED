@@ -609,7 +609,7 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	w.Close()
 	c.ucdb.addEntry(bookDet.Metadata)
-	c.client.DisplayProgress((bookDet.ThisBook * 100) / bookDet.TotalBooks)
+	c.client.DisplayProgress(((bookDet.ThisBook + 1) * 100) / bookDet.TotalBooks)
 	return nil
 }
 
