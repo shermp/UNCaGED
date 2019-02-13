@@ -139,6 +139,7 @@ func (ucdb *UncagedDB) length() int {
 	return len(ucdb.booklist)
 }
 
+// addEntry adds a book to our internal "DB"
 func (ucdb *UncagedDB) addEntry(md map[string]interface{}) error {
 	// mapstructure.Decode() does not decode time (in strings) to time.Time, hence the need
 	// to create a decoder config and decoder, using a provided hook.
@@ -160,6 +161,7 @@ func (ucdb *UncagedDB) addEntry(md map[string]interface{}) error {
 	return nil
 }
 
+// removeEntry removes a book from our internal "DB"
 func (ucdb *UncagedDB) removeEntry(searchType ucdbSearchType, value interface{}) error {
 	index, _, err := ucdb.find(searchType, value)
 	if err != nil {
@@ -229,7 +231,6 @@ func (c *calConn) Start() (err error) {
 			return err
 		}
 	}
-	return nil
 }
 
 func (c *calConn) decodeCalibrePayload(payload []byte) (calOpCode, map[string]interface{}, error) {
@@ -272,19 +273,7 @@ func (c *calConn) hashCalPassword(challenge string) string {
 	return shaHash
 }
 
-// Write the current metadata to a file on disk
-// func (c *calConn) writeCurrentMetadata() error {
-// 	mdPath := filepath.Join(c.clientOpts.DevStore.BookDir, ".metadata.calibre")
-// 	mdJSON, _ := json.MarshalIndent(c.metadata, "", "    ")
-// 	err := ioutil.WriteFile(mdPath, mdJSON, 0644)
-// 	if err != nil {
-// 		return errors.Wrap(err, "failed writing metadata")
-// 	}
-// 	return nil
-// }
-
-// Convenience function to handle writing to our TCP connection, and manage the deadline
-
+// establishTCP attempts to connect to Calibre on a port previously obtained from Calibre
 func (c *calConn) establishTCP() error {
 	err := error(nil)
 	c.client.Println("Connecting to Calibre...")
@@ -298,6 +287,8 @@ func (c *calConn) establishTCP() error {
 	c.tcpReader = bufio.NewReader(c.tcpConn)
 	return nil
 }
+
+// Convenience function to handle writing to our TCP connection, and manage the deadline
 func (c *calConn) writeTCP(payload []byte) error {
 	_, err := c.tcpConn.Write(payload)
 	if e, ok := err.(net.Error); ok && e.Timeout() {
@@ -309,6 +300,7 @@ func (c *calConn) writeTCP(payload []byte) error {
 	return nil
 }
 
+// readTCP reads and parses a Calibre packet from the TCP connection
 func (c *calConn) readTCP() ([]byte, error) {
 	// Read Size of the payload. The payload looks like
 	// 13[0,{"foo":1}]
@@ -346,14 +338,17 @@ func (c *calConn) readTCP() ([]byte, error) {
 	return payload, nil
 }
 
+// handleNoop deals with calibre NOOP's
 func (c *calConn) handleNoop(data map[string]interface{}) error {
+	// Calibre appears to use this opcode as a keep-alive signal
+	// We reply to tell callibre is all still good.
 	if len(data) == 0 {
-		// Calibre appears to use this opcode as a keep-alive signal
-		// We reply to tell callibre is all still good.
 		err := c.writeTCP([]byte(c.okStr))
 		if err != nil {
 			return err
 		}
+		// Calibre also uses noops to request more metadata from books
+		// on device. We handle that case here.
 	} else {
 		count := 0
 		if val, exist := data["count"]; exist {
@@ -390,6 +385,8 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 	return nil
 }
 
+// handleMessage deals with message packets from Calibre, instead of the normal
+// opcode packets. We currently handle password error messages only.
 func (c *calConn) handleMessage(data map[string]interface{}) error {
 	msgType := calMsgCode(data["messageKind"].(float64))
 	switch msgType {
@@ -486,6 +483,8 @@ func (c *calConn) getFreeSpace() error {
 // It is up to the client to decide how this list is derived
 func (c *calConn) getBookCount(data map[string]interface{}) error {
 	bc := BookCount{Count: c.ucdb.length(), WillStream: true, WillScan: true}
+	// when setting "willUseCachedMetadata" to true, Calibre is expecting a list
+	// of books with abridged metadata (the contents of the bookCountDetails struct)
 	if data["willUseCachedMetadata"].(bool) {
 		bcJSON, _ := json.Marshal(bc)
 		payload := buildJSONpayload(bcJSON, OK)
@@ -503,6 +502,8 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 				return err
 			}
 		}
+		// Otherwise, Calibre expects a full set of metadata for each book on the
+		// device. We get that from the client.
 	} else {
 		md := c.client.GetMetadataList([]BookID{})
 		bc.Count = len(md)
@@ -639,6 +640,7 @@ func (c *calConn) deleteBook(data map[string]interface{}) error {
 	return nil
 }
 
+// getBook will send the ebook requested by Calibre, to calibre
 func (c *calConn) getBook(data map[string]interface{}) error {
 	if !data["canStreamBinary"].(bool) || !data["canStream"].(bool) {
 		return errors.New("calibre version does not support binary streaming")
