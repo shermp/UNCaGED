@@ -270,6 +270,11 @@ func (cli *UncagedCLI) DisplayProgress(percentage int) {
 	}
 }
 
+// LogPrintf instructs the client to log stuff
+func (cli *UncagedCLI) LogPrintf(logLevel uc.UCLogLevel, format string, a ...interface{}) {
+	fmt.Printf(format, a...)
+}
+
 func main() {
 	cwd, _ := os.Getwd()
 	cli := &UncagedCLI{
@@ -297,7 +302,7 @@ func main() {
 		cli.deviceInfo.DevInfo.LocationCode = "main"
 		cli.deviceInfo.DevInfo.DeviceStoreUUID = "586e12c6-50b7-43bf-be8d-a4a0b85be530"
 	}
-	uc, err := uc.New(cli)
+	uc, err := uc.New(cli, true)
 	if err != nil {
 		fmt.Println(err)
 		return
