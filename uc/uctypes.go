@@ -121,7 +121,7 @@ type Client interface {
 	// percentage will be an integer between 0 and 100 inclusive
 	DisplayProgress(percentage int)
 	// Instructs the client to log informational and debug info, that aren't errors
-	ClientLog(logLevel ucLogLevel, a ...interface{})
+	LogPrintf(logLevel ucLogLevel, format string, a ...interface{})
 }
 
 // calConn holds all parameters required to implement a calibre connection
