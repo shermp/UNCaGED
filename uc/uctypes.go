@@ -30,6 +30,7 @@ import (
 type calOpCode int
 type calMsgCode int
 type ucdbSearchType int
+type ucLogLevel int
 
 // Calibre opcodes
 const (
@@ -65,6 +66,13 @@ const (
 const (
 	PriKey ucdbSearchType = iota
 	Lpath
+)
+
+// UNCaGED log levels
+const (
+	Info ucLogLevel = iota
+	Warn
+	Debug
 )
 
 // UncagedDB is the structure used by UNCaGED's internal database
@@ -112,6 +120,8 @@ type Client interface {
 	// Instructs the client to display the current progress to the user.
 	// percentage will be an integer between 0 and 100 inclusive
 	DisplayProgress(percentage int)
+	// Instructs the client to log informational and debug info, that aren't errors
+	ClientLog(logLevel ucLogLevel, a ...interface{})
 }
 
 // calConn holds all parameters required to implement a calibre connection
@@ -130,6 +140,7 @@ type calConn struct {
 	ucdb           *UncagedDB
 	client         Client
 	transferCount  int
+	debug          bool
 }
 
 // ClientOptions stores all the client specific options that a client needs

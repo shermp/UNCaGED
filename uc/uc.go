@@ -55,10 +55,11 @@ func buildJSONpayload(jsonBytes []byte, op calOpCode) []byte {
 
 // New initilizes the calibre connection, and returns it
 // An error is returned if a Calibre instance cannot be found
-func New(client Client) (*calConn, error) {
+func New(client Client, enableDebug bool) (*calConn, error) {
 	var retErr error
 	retErr = nil
 	c := &calConn{}
+	c.debug = enableDebug
 	c.client = client
 	c.clientOpts = c.client.GetClientOptions()
 	c.transferCount = 0
