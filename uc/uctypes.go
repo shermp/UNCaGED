@@ -30,7 +30,7 @@ import (
 type calOpCode int
 type calMsgCode int
 type ucdbSearchType int
-type ucLogLevel int
+type UCLogLevel int
 
 // Calibre opcodes
 const (
@@ -70,7 +70,7 @@ const (
 
 // UNCaGED log levels
 const (
-	Info ucLogLevel = iota
+	Info UCLogLevel = iota
 	Warn
 	Debug
 )
@@ -121,7 +121,7 @@ type Client interface {
 	// percentage will be an integer between 0 and 100 inclusive
 	DisplayProgress(percentage int)
 	// Instructs the client to log informational and debug info, that aren't errors
-	LogPrintf(logLevel ucLogLevel, format string, a ...interface{})
+	LogPrintf(logLevel UCLogLevel, format string, a ...interface{})
 }
 
 // calConn holds all parameters required to implement a calibre connection
