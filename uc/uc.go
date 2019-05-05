@@ -82,6 +82,9 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	// We choose the first reply we recieve, which is a string
 	// containing the IP address and port to connect to
 	case addr := <-udpReply:
+		if c.debug {
+			c.client.LogPrintf(Debug, "Calibre Address %s", addr)
+		}
 		c.calibreAddr = addr
 	// A timeout just in case we receive no reply
 	case <-time.After(5 * time.Second):
@@ -589,6 +592,9 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	if c.debug {
+		c.client.LogPrintf(Debug, "Send Book detail is: %+v\n", bookDet)
+	}
 	if bookDet.ThisBook == 0 {
 		c.client.DisplayProgress(0)
 	}
@@ -600,11 +606,14 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	if data["wantsSendOkToSendbook"].(bool) {
+	if bookDet.WantsSendOkToSendbook {
+		if c.debug {
+			c.client.LogPrintf(Debug, "Sending OK-to-send packet\n")
+		}
 		c.writeTCP([]byte(c.okStr))
 	}
-	_, err = io.CopyN(w, c.tcpReader, int64(bookDet.Length))
-	if err != nil {
+	n, err := io.CopyN(w, c.tcpReader, int64(bookDet.Length))
+	if err != nil || n != int64(bookDet.Length) {
 		w.Close()
 		return err
 	}
