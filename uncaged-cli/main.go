@@ -191,7 +191,7 @@ func (cli *UncagedCLI) GetFreeSpace() uint64 {
 
 // SaveBook saves a book with the provided metadata to the disk.
 // Implementations return an io.WriteCloser for UNCaGED to write the ebook to
-func (cli *UncagedCLI) SaveBook(md map[string]interface{}, lastBook bool) (io.WriteCloser, error) {
+SaveBook(md map[string]interface{}, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
 	bookExists := false
 	lpath := md["lpath"].(string)
 	bookPath := filepath.Join(cli.bookDir, lpath)
@@ -214,7 +214,7 @@ func (cli *UncagedCLI) SaveBook(md map[string]interface{}, lastBook bool) (io.Wr
 	if lastBook {
 		cli.saveMDfile()
 	}
-	return bookFile, nil
+	return bookFile, "", nil
 }
 
 // GetBook provides an io.ReadCloser, from which UNCaGED can send the requested book to Calibre

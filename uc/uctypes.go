@@ -104,9 +104,11 @@ type Client interface {
 	// GetFreeSpace reports the amount of free storage space to Calibre
 	GetFreeSpace() uint64
 	// SaveBook saves a book with the provided metadata to the disk.
-	// Implementations return an io.WriteCloser for UNCaGED to write the ebook to
+	// Implementations return an io.WriteCloser (book) for UNCaGED to write the ebook to
 	// lastBook informs the client that this is the last book for this transfer
-	SaveBook(md map[string]interface{}, lastBook bool) (io.WriteCloser, error)
+	// newLpath informs UNCaGED of an Lpath change. Use this if the lpath field in md is
+	// not valid (eg filesystem limitations.). Return an empty string if original lpath is valid
+	SaveBook(md map[string]interface{}, lastBook bool) (book io.WriteCloser, newLpath string, err error)
 	// GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
 	// NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
 	// change at any time, so best to handle it anyway.
@@ -257,4 +259,9 @@ type GetBook struct {
 	WillStream       bool  `json:"willStream"`
 	WillStreamBinary bool  `json:"willStreamBinary"`
 	FileLength       int64 `json:"fileLength"`
+}
+
+// NewLpath informs Calibre of a change in lpath
+type NewLpath struct {
+	Lpath string `json:"lpath"`
 }

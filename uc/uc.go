@@ -602,7 +602,8 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	if bookDet.ThisBook == (bookDet.TotalBooks - 1) {
 		lastBook = true
 	}
-	w, err := c.client.SaveBook(bookDet.Metadata, lastBook)
+
+	w, l, err := c.client.SaveBook(bookDet.Metadata, lastBook)
 	if err != nil {
 		return err
 	}
@@ -610,7 +611,15 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 		if c.debug {
 			c.client.LogPrintf(Debug, "Sending OK-to-send packet\n")
 		}
-		c.writeTCP([]byte(c.okStr))
+		if bookDet.CanSupportLpathChanges && l != "" {
+			bookDet.Lpath = l
+			newLP := NewLpath{Lpath: bookDet.Lpath}
+			lpJSON, _ := json.Marshal(newLP)
+			payload := buildJSONpayload(lpJSON, OK)
+			c.writeTCP(payload)
+		} else {
+			c.writeTCP([]byte(c.okStr))
+		}
 	}
 	n, err := io.CopyN(w, c.tcpReader, int64(bookDet.Length))
 	if err != nil || n != int64(bookDet.Length) {
