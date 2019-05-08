@@ -31,6 +31,7 @@ type calOpCode int
 type calMsgCode int
 type ucdbSearchType int
 type UCLogLevel int
+type UCStatus int
 
 // Calibre opcodes
 const (
@@ -75,6 +76,18 @@ const (
 	Debug
 )
 
+// UNCaGED status indicators
+const (
+	SearchingCalibre UCStatus = iota
+	Connecting
+	Connected
+	Disconnected
+	Idle
+	ReceivingBook
+	SendingBook
+	SendingExtraMetadata
+)
+
 // UncagedDB is the structure used by UNCaGED's internal database
 type UncagedDB struct {
 	nextKey  int
@@ -116,12 +129,12 @@ type Client interface {
 	// DeleteBook instructs the client to delete the specified book on the device
 	// Error is returned if the book was unable to be deleted
 	DeleteBook(book BookID) error
-	// Println is used to print messages to the users display. Usage is identical to
-	// that of fmt.Println()
-	Println(a ...interface{}) (n int, err error)
-	// Instructs the client to display the current progress to the user.
-	// percentage will be an integer between 0 and 100 inclusive
-	DisplayProgress(percentage int)
+	// UpdateStatus informs the client what UNCaGED is doing. It is purely informational,
+	// and it's implementation may be empty
+	// status: What UC is currently doing (eg: receiving book(s))
+	// progress: If the current status has a progress associated with it, progress will be
+	//           between 0 & 100. Otherwise progress will be negative
+	UpdateStatus(status UCStatus, progress int)
 	// Instructs the client to log informational and debug info, that aren't errors
 	LogPrintf(logLevel UCLogLevel, format string, a ...interface{})
 }

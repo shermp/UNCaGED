@@ -254,22 +254,9 @@ func (cli *UncagedCLI) DeleteBook(book uc.BookID) error {
 	cli.saveMDfile()
 	return nil
 }
-
-// Println is used to print messages to the users display. Usage is identical to
-// that of fmt.Println()
-func (cli *UncagedCLI) Println(a ...interface{}) (n int, err error) {
-	return fmt.Println(a...)
+func (cli *UncagedCLI) UpdateStatus(status UCStatus, progress int) {
+	
 }
-
-// DisplayProgress Instructs the client to display the current progress to the user.
-// percentage will be an integer between 0 and 100 inclusive
-func (cli *UncagedCLI) DisplayProgress(percentage int) {
-	fmt.Printf("Current Progress: %d%%", percentage)
-	if percentage == 100 {
-		fmt.Printf("\n")
-	}
-}
-
 // LogPrintf instructs the client to log stuff
 func (cli *UncagedCLI) LogPrintf(logLevel uc.UCLogLevel, format string, a ...interface{}) {
 	fmt.Printf(format, a...)

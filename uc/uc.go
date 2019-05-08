@@ -73,6 +73,7 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	udpReply := make(chan string)
 	// Calibre listens for a 'hello' UDP packet on the following
 	// five ports. We try all five ports concurrently
+	c.client.UpdateStatus(SearchingCalibre, -1)
 	bcastPorts := []int{54982, 48123, 39001, 44044, 59678}
 	for _, p := range bcastPorts {
 		go c.findCalibre(p, udpReply)
@@ -186,11 +187,12 @@ func (ucdb *UncagedDB) initDB(bl []BookCountDetails) {
 // Start starts a TCP connection with Calibre, then listens
 // for messages and pass them to the appropriate handler
 func (c *calConn) Start() (err error) {
+	c.client.UpdateStatus(Connecting, -1)
 	err = c.establishTCP()
 	if err != nil {
 		return errors.Wrap(err, "establishing connection failed")
 	}
-
+	c.client.UpdateStatus(Connected, -1)
 	// Connect to Calibre
 	// Keep reading untill the connection is closed
 	for {
@@ -253,7 +255,7 @@ func (c *calConn) readDecodeCalibrePayload() (calOpCode, map[string]interface{},
 	payload, err := c.readTCP()
 	if err != nil {
 		if err == io.EOF {
-			c.client.Println("Calibre Disconnected")
+			c.client.UpdateStatus(Disconnected, -1)
 			return NOOP, nil, err
 		}
 		return NOOP, nil, errors.Wrap(err, "connection closed")
@@ -280,14 +282,12 @@ func (c *calConn) hashCalPassword(challenge string) string {
 // establishTCP attempts to connect to Calibre on a port previously obtained from Calibre
 func (c *calConn) establishTCP() error {
 	err := error(nil)
-	c.client.Println("Connecting to Calibre...")
 	// Connect to Calibre
 	c.tcpConn, err = net.Dial("tcp", c.calibreAddr)
 	if err != nil {
 		return errors.Wrap(err, "calibre connection failed")
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
-	c.client.Println("Connected to Calibre!")
 	c.tcpReader = bufio.NewReader(c.tcpConn)
 	return nil
 }
@@ -347,6 +347,7 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 	// Calibre appears to use this opcode as a keep-alive signal
 	// We reply to tell callibre is all still good.
 	if len(data) == 0 {
+		c.client.UpdateStatus(Idle, -1)
 		err := c.writeTCP([]byte(c.okStr))
 		if err != nil {
 			return err
@@ -362,6 +363,7 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 		if count == 0 {
 			return nil
 		}
+		c.client.UpdateStatus(SendingExtraMetadata, -1)
 		bookList := make([]BookID, count)
 		for i := 0; i < count; i++ {
 			opcode, newdata, err := c.readDecodeCalibrePayload()
@@ -596,13 +598,12 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 		c.client.LogPrintf(Debug, "Send Book detail is: %+v\n", bookDet)
 	}
 	if bookDet.ThisBook == 0 {
-		c.client.DisplayProgress(0)
+		c.client.UpdateStatus(ReceivingBook, 0)
 	}
 	lastBook := false
 	if bookDet.ThisBook == (bookDet.TotalBooks - 1) {
 		lastBook = true
 	}
-
 	w, l, err := c.client.SaveBook(bookDet.Metadata, lastBook)
 	if err != nil {
 		return err
@@ -629,7 +630,8 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	w.Close()
 	c.ucdb.addEntry(bookDet.Metadata)
-	c.client.DisplayProgress(((bookDet.ThisBook + 1) * 100) / bookDet.TotalBooks)
+	progress := ((bookDet.ThisBook + 1) * 100) / bookDet.TotalBooks
+	c.client.UpdateStatus(ReceivingBook, progress)
 	return nil
 }
 
@@ -661,6 +663,7 @@ func (c *calConn) deleteBook(data map[string]interface{}) error {
 
 // getBook will send the ebook requested by Calibre, to calibre
 func (c *calConn) getBook(data map[string]interface{}) error {
+	c.client.UpdateStatus(SendingBook, -1)
 	if !data["canStreamBinary"].(bool) || !data["canStream"].(bool) {
 		return errors.New("calibre version does not support binary streaming")
 	}
