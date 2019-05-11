@@ -191,7 +191,7 @@ func (cli *UncagedCLI) GetFreeSpace() uint64 {
 
 // SaveBook saves a book with the provided metadata to the disk.
 // Implementations return an io.WriteCloser for UNCaGED to write the ebook to
-SaveBook(md map[string]interface{}, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
+func (cli *UncagedCLI) SaveBook(md map[string]interface{}, len int, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
 	bookExists := false
 	lpath := md["lpath"].(string)
 	bookPath := filepath.Join(cli.bookDir, lpath)
@@ -199,7 +199,7 @@ SaveBook(md map[string]interface{}, lastBook bool) (book io.WriteCloser, newLpat
 	os.MkdirAll(dir, 0777)
 	bookFile, err := os.OpenFile(bookPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	for i, m := range cli.metadata {
 		currLpath := m["lpath"].(string)
@@ -254,9 +254,10 @@ func (cli *UncagedCLI) DeleteBook(book uc.BookID) error {
 	cli.saveMDfile()
 	return nil
 }
-func (cli *UncagedCLI) UpdateStatus(status UCStatus, progress int) {
-	
+func (cli *UncagedCLI) UpdateStatus(status uc.UCStatus, progress int) {
+
 }
+
 // LogPrintf instructs the client to log stuff
 func (cli *UncagedCLI) LogPrintf(logLevel uc.UCLogLevel, format string, a ...interface{}) {
 	fmt.Printf(format, a...)
