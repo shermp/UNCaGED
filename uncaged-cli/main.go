@@ -178,7 +178,7 @@ func (cli *UncagedCLI) UpdateMetadata(mdList []map[string]interface{}) {
 }
 
 // GetPassword gets a password from the user.
-func (cli *UncagedCLI) GetPassword() string {
+func (cli *UncagedCLI) GetPassword(calibreInfo uc.CalibreInitInfo) string {
 	// For testing purposes ONLY
 	return "uncaged"
 }

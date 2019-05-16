@@ -113,7 +113,7 @@ type Client interface {
 	// new slice of metadata maps
 	UpdateMetadata(mdList []map[string]interface{})
 	// GetPassword gets a password from the user.
-	GetPassword() string
+	GetPassword(calibreInfo CalibreInitInfo) string
 	// GetFreeSpace reports the amount of free storage space to Calibre
 	GetFreeSpace() uint64
 	// SaveBook saves a book with the provided metadata to the disk.
@@ -142,12 +142,9 @@ type Client interface {
 
 // calConn holds all parameters required to implement a calibre connection
 type calConn struct {
-	clientOpts  ClientOptions
-	calibreAddr string
-	calibreInfo struct {
-		calibreVers    string
-		calibreLibUUID string
-	}
+	clientOpts     ClientOptions
+	calibreAddr    string
+	calibreInfo    CalibreInitInfo
 	deviceInfo     DeviceInfo
 	okStr          string
 	serverPassword string
@@ -172,29 +169,45 @@ type ClientOptions struct {
 	}
 }
 
+// CalibreInitInfo is the initial information about itself that Calibre sends when establishing
+// a connection
+type CalibreInitInfo struct {
+	CanSupportLpathChanges bool     `json:"canSupportLpathChanges"`
+	CanSupportUpdateBooks  bool     `json:"canSupportUpdateBooks"`
+	CalibreVersion         []int    `json:"calibre_version"`
+	PubdateFormat          string   `json:"pubdateFormat"`
+	ServerProtocolVersion  int      `json:"serverProtocolVersion"`
+	PasswordChallenge      string   `json:"passwordChallenge"`
+	CurrentLibraryName     string   `json:"currentLibraryName"`
+	TimestampFormat        string   `json:"timestampFormat"`
+	ValidExtensions        []string `json:"validExtensions"`
+	LastModifiedFormat     string   `json:"lastModifiedFormat"`
+	CurrentLibraryUUID     string   `json:"currentLibraryUUID"`
+}
+
 // CalibreInit is used by calibre to determine the software/devices capabilities
 type CalibreInit struct {
-	WillAskForUpdateBooks         bool           `json:"willAskForUpdateBooks"`
-	VersionOK                     bool           `json:"versionOK"`
-	MaxBookContentPacketLen       int            `json:"maxBookContentPacketLen"`
-	AcceptedExtensions            []string       `json:"acceptedExtensions"`
-	ExtensionPathLengths          map[string]int `json:"extensionPathLengths"`
-	PasswordHash                  string         `json:"passwordHash"`
-	CcVersionNumber               int            `json:"ccVersionNumber"`
-	CanStreamBooks                bool           `json:"canStreamBooks"`
-	CanStreamMetadata             bool           `json:"canStreamMetadata"`
-	CanReceiveBookBinary          bool           `json:"canReceiveBookBinary"`
-	CanDeleteMultipleBooks        bool           `json:"canDeleteMultipleBooks"`
-	CanUseCachedMetadata          bool           `json:"canUseCachedMetadata"`
-	DeviceKind                    string         `json:"deviceKind"`
-	UseUUIDFileNames              bool           `json:"useUuidFileNames"`
-	CoverHeight                   int            `json:"coverHeight"`
-	DeviceName                    string         `json:"deviceName"`
-	AppName                       string         `json:"appName"`
-	CacheUsesLpaths               bool           `json:"cacheUsesLpaths"`
-	CanSendOkToSendbook           bool           `json:"canSendOkToSendbook"`
-	CanAcceptLibraryInfo          bool           `json:"canAcceptLibraryInfo"`
-	SetTempMarkWhenReadInfoSynced bool           `json:"setTempMarkWhenReadInfoSynced"`
+	WillAskForUpdateBooks         bool           `mapstructure:"willAskForUpdateBooks"`
+	VersionOK                     bool           `mapstructure:"versionOK"`
+	MaxBookContentPacketLen       int            `mapstructure:"maxBookContentPacketLen"`
+	AcceptedExtensions            []string       `mapstructure:"acceptedExtensions"`
+	ExtensionPathLengths          map[string]int `mapstructure:"extensionPathLengths"`
+	PasswordHash                  string         `mapstructure:"passwordHash"`
+	CcVersionNumber               int            `mapstructure:"ccVersionNumber"`
+	CanStreamBooks                bool           `mapstructure:"canStreamBooks"`
+	CanStreamMetadata             bool           `mapstructure:"canStreamMetadata"`
+	CanReceiveBookBinary          bool           `mapstructure:"canReceiveBookBinary"`
+	CanDeleteMultipleBooks        bool           `mapstructure:"canDeleteMultipleBooks"`
+	CanUseCachedMetadata          bool           `mapstructure:"canUseCachedMetadata"`
+	DeviceKind                    string         `mapstructure:"deviceKind"`
+	UseUUIDFileNames              bool           `mapstructure:"useUuidFileNames"`
+	CoverHeight                   int            `mapstructure:"coverHeight"`
+	DeviceName                    string         `mapstructure:"deviceName"`
+	AppName                       string         `mapstructure:"appName"`
+	CacheUsesLpaths               bool           `mapstructure:"cacheUsesLpaths"`
+	CanSendOkToSendbook           bool           `mapstructure:"canSendOkToSendbook"`
+	CanAcceptLibraryInfo          bool           `mapstructure:"canAcceptLibraryInfo"`
+	SetTempMarkWhenReadInfoSynced bool           `mapstructure:"setTempMarkWhenReadInfoSynced"`
 }
 
 // DeviceInfo is used by calibre to determine some more device information, including

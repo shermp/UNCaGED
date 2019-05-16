@@ -401,7 +401,7 @@ func (c *calConn) handleMessage(data map[string]interface{}) error {
 		c.writeTCP([]byte(c.okStr))
 		c.tcpConn.Close()
 		// Ask the user for a password
-		c.serverPassword = c.client.GetPassword()
+		c.serverPassword = c.client.GetPassword(c.calibreInfo)
 		if c.serverPassword == "" {
 			return errors.New("no password entered")
 		}
@@ -412,13 +412,17 @@ func (c *calConn) handleMessage(data map[string]interface{}) error {
 
 // getInitInfo handles the request from Calibre to send initialization info.
 func (c *calConn) getInitInfo(data map[string]interface{}) error {
+	err := mapstructure.Decode(data, &c.calibreInfo)
+	if err != nil {
+		return err
+	}
 	extPathLen := make(map[string]int)
 	for _, e := range c.clientOpts.SupportedExt {
 		extPathLen[e] = 38
 	}
 	passHash := ""
-	if c.serverPassword != "" && data["passwordChallenge"].(string) != "" {
-		passHash = c.hashCalPassword(data["passwordChallenge"].(string))
+	if c.serverPassword != "" && c.calibreInfo.PasswordChallenge != "" {
+		passHash = c.hashCalPassword(c.calibreInfo.PasswordChallenge)
 	}
 	initInfo := CalibreInit{
 		VersionOK:               true,
@@ -438,7 +442,7 @@ func (c *calConn) getInitInfo(data map[string]interface{}) error {
 		AppName:                 c.clientOpts.ClientName,
 		CacheUsesLpaths:         true,
 		CanSendOkToSendbook:     true,
-		CanAcceptLibraryInfo:    true,
+		CanAcceptLibraryInfo:    false,
 	}
 	initJSON, _ := json.Marshal(initInfo)
 	payload := buildJSONpayload(initJSON, OK)
