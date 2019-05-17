@@ -453,7 +453,7 @@ func (c *calConn) getInitInfo(data map[string]interface{}) error {
 		AppName:                 c.clientOpts.ClientName,
 		CacheUsesLpaths:         true,
 		CanSendOkToSendbook:     true,
-		CanAcceptLibraryInfo:    true,
+		CanAcceptLibraryInfo:    false,
 	}
 	initJSON, _ := json.Marshal(initInfo)
 	payload := buildJSONpayload(initJSON, OK)
