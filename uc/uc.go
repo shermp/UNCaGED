@@ -428,7 +428,10 @@ func (c *calConn) getInitInfo(data map[string]interface{}) error {
 	for _, e := range c.clientOpts.SupportedExt {
 		extPathLen[e] = 38
 	}
-	c.serverPassword = c.client.GetPassword(c.calibreInfo)
+	// Note, the first time we are challenged with a password, we respond
+	// with an incorrect password. This gives us the opportunity to close
+	// the connection, and spend as long as we need to gather a password from
+	// the client.
 	passHash := ""
 	if c.calibreInfo.PasswordChallenge != "" {
 		passHash = c.hashCalPassword(c.calibreInfo.PasswordChallenge)
