@@ -83,9 +83,7 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	// We choose the first reply we recieve, which is a string
 	// containing the IP address and port to connect to
 	case addr := <-udpReply:
-		if c.debug {
-			c.client.LogPrintf(Debug, "Calibre Address %s", addr)
-		}
+		c.debugLogPrintf("Calibre Address %s", addr)
 		c.calibreAddr = addr
 	// A timeout just in case we receive no reply
 	case <-time.After(5 * time.Second):
@@ -611,9 +609,7 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
-	if c.debug {
-		c.client.LogPrintf(Debug, "Send Book detail is: %+v\n", bookDet)
-	}
+	c.debugLogPrintf("Send Book detail is: %+v\n", bookDet)
 	if bookDet.ThisBook == 0 {
 		c.client.UpdateStatus(ReceivingBook, 0)
 	}
@@ -626,9 +622,7 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 		return err
 	}
 	if bookDet.WantsSendOkToSendbook {
-		if c.debug {
-			c.client.LogPrintf(Debug, "Sending OK-to-send packet\n")
-		}
+		c.debugLogPrintf("Sending OK-to-send packet\n")
 		if bookDet.CanSupportLpathChanges && l != "" {
 			bookDet.Lpath = l
 			newLP := NewLpath{Lpath: bookDet.Lpath}
