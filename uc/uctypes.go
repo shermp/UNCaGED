@@ -86,6 +86,7 @@ const (
 	ReceivingBook
 	SendingBook
 	SendingExtraMetadata
+	EmptyPasswordReceived
 )
 
 // UncagedDB is the structure used by UNCaGED's internal database

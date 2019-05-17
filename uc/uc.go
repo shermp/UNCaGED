@@ -403,6 +403,7 @@ func (c *calConn) handleMessage(data map[string]interface{}) error {
 		// Ask the user for a password
 		c.serverPassword = c.client.GetPassword(c.calibreInfo)
 		if c.serverPassword == "" {
+			c.client.UpdateStatus(EmptyPasswordReceived, -1)
 			return errors.New("no password entered")
 		}
 		return c.establishTCP()
