@@ -199,11 +199,12 @@ func (c *calConn) Start() (err error) {
 		opcode, data, err := c.readDecodeCalibrePayload()
 		if err != nil {
 			if err == io.EOF {
+				c.debugLogPrintf("TCP Connection Closed")
 				return nil
 			}
 			return errors.Wrap(err, "packet reading failed")
 		}
-
+		c.debugLogPrintf("Calibre Opcode received: %v\n", opcode)
 		switch opcode {
 		case GET_INITIALIZATION_INFO:
 			err = c.getInitInfo(data)
@@ -236,6 +237,12 @@ func (c *calConn) Start() (err error) {
 			}
 			return err
 		}
+	}
+}
+
+func (c *calConn) debugLogPrintf(format string, a ...interface{}) {
+	if c.debug {
+		c.client.LogPrintf(Debug, format, a...)
 	}
 }
 
@@ -421,8 +428,9 @@ func (c *calConn) getInitInfo(data map[string]interface{}) error {
 	for _, e := range c.clientOpts.SupportedExt {
 		extPathLen[e] = 38
 	}
+	c.serverPassword = c.client.GetPassword(c.calibreInfo)
 	passHash := ""
-	if c.serverPassword != "" && c.calibreInfo.PasswordChallenge != "" {
+	if c.calibreInfo.PasswordChallenge != "" {
 		passHash = c.hashCalPassword(c.calibreInfo.PasswordChallenge)
 	}
 	initInfo := CalibreInit{
@@ -443,7 +451,7 @@ func (c *calConn) getInitInfo(data map[string]interface{}) error {
 		AppName:                 c.clientOpts.ClientName,
 		CacheUsesLpaths:         true,
 		CanSendOkToSendbook:     true,
-		CanAcceptLibraryInfo:    false,
+		CanAcceptLibraryInfo:    true,
 	}
 	initJSON, _ := json.Marshal(initInfo)
 	payload := buildJSONpayload(initJSON, OK)
