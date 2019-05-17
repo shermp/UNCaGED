@@ -192,7 +192,6 @@ func (c *calConn) Start() (err error) {
 	if err != nil {
 		return errors.Wrap(err, "establishing connection failed")
 	}
-	c.client.UpdateStatus(Connected, -1)
 	// Connect to Calibre
 	// Keep reading untill the connection is closed
 	for {
@@ -464,6 +463,8 @@ func (c *calConn) getInitInfo(data map[string]interface{}) error {
 // getDeviceInfo handles the request from Calibre for the device (that's us!)
 // to send information about itself
 func (c *calConn) getDeviceInfo(data map[string]interface{}) error {
+	// By this point, we should have an initial connection to calibre
+	c.client.UpdateStatus(Connected, -1)
 	c.deviceInfo.DeviceVersion = c.clientOpts.DeviceModel
 	c.deviceInfo.Version = "391"
 	devInfoJSON, _ := json.Marshal(c.deviceInfo)
