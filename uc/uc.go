@@ -61,15 +61,21 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	c := &calConn{}
 	c.debug = enableDebug
 	c.client = client
-	c.clientOpts = c.client.GetClientOptions()
+	c.clientOpts, retErr = c.client.GetClientOptions()
 	c.transferCount = 0
 	c.okStr = "6[0,{}]"
 	if retErr != nil {
 		return nil, retErr
 	}
 	c.ucdb = &UncagedDB{}
-	c.ucdb.initDB(c.client.GetDeviceBookList())
-	c.deviceInfo = c.client.GetDeviceInfo()
+	bookList, retErr := c.client.GetDeviceBookList()
+	if retErr != nil {
+		return nil, retErr
+	}
+	c.ucdb.initDB(bookList)
+	if c.deviceInfo, retErr = c.client.GetDeviceInfo(); retErr != nil {
+		return nil, retErr
+	}
 	udpReply := make(chan string)
 	// Calibre listens for a 'hello' UDP packet on the following
 	// five ports. We try all five ports concurrently
@@ -398,6 +404,7 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 // handleMessage deals with message packets from Calibre, instead of the normal
 // opcode packets. We currently handle password error messages only.
 func (c *calConn) handleMessage(data map[string]interface{}) error {
+	err := error(nil)
 	msgType := calMsgCode(data["messageKind"].(float64))
 	switch msgType {
 	case passwordError:
@@ -405,14 +412,16 @@ func (c *calConn) handleMessage(data map[string]interface{}) error {
 		c.writeTCP([]byte(c.okStr))
 		c.tcpConn.Close()
 		// Ask the user for a password
-		c.serverPassword = c.client.GetPassword(c.calibreInfo)
+		if c.serverPassword, err = c.client.GetPassword(c.calibreInfo); err != nil {
+			return err
+		}
 		if c.serverPassword == "" {
 			c.client.UpdateStatus(EmptyPasswordReceived, -1)
 			return NoPassword
 		}
 		return c.establishTCP()
 	}
-	return nil
+	return err
 }
 
 // getInitInfo handles the request from Calibre to send initialization info.
@@ -526,12 +535,15 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 		// Otherwise, Calibre expects a full set of metadata for each book on the
 		// device. We get that from the client.
 	} else {
-		md := c.client.GetMetadataList([]BookID{})
+		md, err := c.client.GetMetadataList([]BookID{})
+		if err != nil {
+			return err
+		}
 		bc.Count = len(md)
 		bcJSON, _ := json.Marshal(bc)
 		payload := buildJSONpayload(bcJSON, ok)
 		// Send our count
-		err := c.writeTCP(payload)
+		err = c.writeTCP(payload)
 		if err != nil {
 			return err
 		}
@@ -551,14 +563,17 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 // Calibre requests a complete metadata listing (eg, when using a
 // different Calibre library)
 func (c *calConn) resendMetadataList(bookList []BookID) error {
-	mdList := c.client.GetMetadataList(bookList)
+	mdList, err := c.client.GetMetadataList(bookList)
+	if err != nil {
+		return err
+	}
 	if len(mdList) == 0 {
 		return c.writeTCP([]byte(c.okStr))
 	}
 	for _, md := range mdList {
 		mJSON, _ := json.Marshal(md)
 		payload := buildJSONpayload(mJSON, ok)
-		err := c.writeTCP(payload)
+		err = c.writeTCP(payload)
 		if err != nil {
 			return err
 		}

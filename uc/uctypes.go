@@ -107,25 +107,26 @@ type UncagedDB struct {
 }
 
 // Client is the interface that specific implementations of UNCaGED must implement.
+// Errors will be returned as-is.
 type Client interface {
 	// GetClientOptions returns all the client specific options required for UNCaGED
-	GetClientOptions() ClientOptions
+	GetClientOptions() (opts ClientOptions, err error)
 	// GetDeviceBookList returns a slice of all the books currently on the device
 	// A nil slice is interpreted has having no books on the device
-	GetDeviceBookList() []BookCountDetails
+	GetDeviceBookList() (booklist []BookCountDetails, err error)
 	// GetMetadataList sends complete metadata for the books listed in lpaths, or for
 	// all books on device if lpaths is empty
-	GetMetadataList(books []BookID) []map[string]interface{}
+	GetMetadataList(books []BookID) (mdList []map[string]interface{}, err error)
 	// GetDeviceInfo asks the client for information about the drive info to use
-	GetDeviceInfo() DeviceInfo
+	GetDeviceInfo() (DeviceInfo, error)
 	// SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
 	// struct DevInfo is modified.
-	SetDeviceInfo(devInfo DeviceInfo)
+	SetDeviceInfo(devInfo DeviceInfo) error
 	// UpdateMetadata instructs the client to update their metadata according to the
 	// new slice of metadata maps
-	UpdateMetadata(mdList []map[string]interface{})
+	UpdateMetadata(mdList []map[string]interface{}) error
 	// GetPassword gets a password from the user.
-	GetPassword(calibreInfo CalibreInitInfo) string
+	GetPassword(calibreInfo CalibreInitInfo) (password string, err error)
 	// GetFreeSpace reports the amount of free storage space to Calibre
 	GetFreeSpace() uint64
 	// SaveBook saves a book with the provided metadata to the disk.
@@ -138,7 +139,7 @@ type Client interface {
 	// GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
 	// NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
 	// change at any time, so best to handle it anyway.
-	GetBook(book BookID, filePos int64) (io.ReadCloser, int64, error)
+	GetBook(book BookID, filePos int64) (bookIO io.ReadCloser, size int64, err error)
 	// DeleteBook instructs the client to delete the specified book on the device
 	// Error is returned if the book was unable to be deleted
 	DeleteBook(book BookID) error
