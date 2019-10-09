@@ -203,29 +203,29 @@ func (c *calConn) Start() (err error) {
 		}
 		c.debugLogPrintf("Calibre Opcode received: %v\n", opcode)
 		switch opcode {
-		case GET_INITIALIZATION_INFO:
+		case getInitializationInfo:
 			err = c.getInitInfo(data)
-		case DISPLAY_MESSAGE:
+		case displayMessage:
 			err = c.handleMessage(data)
-		case GET_DEVICE_INFORMATION:
+		case getDeviceInformation:
 			err = c.getDeviceInfo(data)
-		case SET_CALIBRE_DEVICE_INFO:
+		case setCalibreDeviceInfo:
 			err = c.setDeviceInfo(data)
-		case FREE_SPACE:
+		case freeSpace:
 			err = c.getFreeSpace()
-		case GET_BOOK_COUNT:
+		case getBookCount:
 			err = c.getBookCount(data)
-		case SEND_BOOKLISTS:
+		case sendBooklists:
 			err = c.updateDeviceMetadata(data)
-		case SET_LIBRARY_INFO:
+		case setLibraryInfo:
 			err = c.writeTCP([]byte(c.okStr))
-		case SEND_BOOK:
+		case sendBook:
 			err = c.sendBook(data)
-		case DELETE_BOOK:
+		case deleteBook:
 			err = c.deleteBook(data)
-		case GET_BOOK_FILE_SEGMENT:
+		case getBookFileSegment:
 			err = c.getBook(data)
-		case NOOP:
+		case noop:
 			err = c.handleNoop(data)
 		}
 		if err != nil {
@@ -260,13 +260,13 @@ func (c *calConn) readDecodeCalibrePayload() (calOpCode, map[string]interface{},
 	if err != nil {
 		if err == io.EOF {
 			c.client.UpdateStatus(Disconnected, -1)
-			return NOOP, nil, err
+			return noop, nil, err
 		}
-		return NOOP, nil, errors.Wrap(err, "connection closed")
+		return noop, nil, errors.Wrap(err, "connection closed")
 	}
 	opcode, data, err := c.decodeCalibrePayload(payload)
 	if err != nil {
-		return NOOP, nil, errors.Wrap(err, "packet decoding failed")
+		return noop, nil, errors.Wrap(err, "packet decoding failed")
 	}
 	return opcode, data, nil
 }
@@ -377,7 +377,7 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 				}
 				return errors.Wrap(err, "packet reading failed")
 			}
-			if opcode != NOOP {
+			if opcode != noop {
 				return errors.New("noop expected")
 			}
 			_, bd, err := c.ucdb.find(PriKey, int(newdata["priKey"].(float64)))
@@ -400,7 +400,7 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 func (c *calConn) handleMessage(data map[string]interface{}) error {
 	msgType := calMsgCode(data["messageKind"].(float64))
 	switch msgType {
-	case MESSAGE_PASSWORD_ERROR:
+	case passwordError:
 		// Respond to calibre, then close the connection
 		c.writeTCP([]byte(c.okStr))
 		c.tcpConn.Close()
@@ -454,7 +454,7 @@ func (c *calConn) getInitInfo(data map[string]interface{}) error {
 		CanAcceptLibraryInfo:    false,
 	}
 	initJSON, _ := json.Marshal(initInfo)
-	payload := buildJSONpayload(initJSON, OK)
+	payload := buildJSONpayload(initJSON, ok)
 	return c.writeTCP(payload)
 }
 
@@ -466,7 +466,7 @@ func (c *calConn) getDeviceInfo(data map[string]interface{}) error {
 	c.deviceInfo.DeviceVersion = c.clientOpts.DeviceModel
 	c.deviceInfo.Version = "391"
 	devInfoJSON, _ := json.Marshal(c.deviceInfo)
-	payload := buildJSONpayload(devInfoJSON, OK)
+	payload := buildJSONpayload(devInfoJSON, ok)
 	return c.writeTCP(payload)
 }
 
@@ -496,7 +496,7 @@ func (c *calConn) getFreeSpace() error {
 	var space FreeSpace
 	space.FreeSpaceOnDevice = c.client.GetFreeSpace()
 	fsJSON, _ := json.Marshal(space)
-	payload := buildJSONpayload(fsJSON, OK)
+	payload := buildJSONpayload(fsJSON, ok)
 	return c.writeTCP(payload)
 }
 
@@ -508,7 +508,7 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 	// of books with abridged metadata (the contents of the bookCountDetails struct)
 	if data["willUseCachedMetadata"].(bool) {
 		bcJSON, _ := json.Marshal(bc)
-		payload := buildJSONpayload(bcJSON, OK)
+		payload := buildJSONpayload(bcJSON, ok)
 		// Send our count
 		err := c.writeTCP(payload)
 		if err != nil {
@@ -517,7 +517,7 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 
 		for _, b := range c.ucdb.booklist {
 			bJSON, _ := json.Marshal(b)
-			payload = buildJSONpayload(bJSON, OK)
+			payload = buildJSONpayload(bJSON, ok)
 			err := c.writeTCP(payload)
 			if err != nil {
 				return err
@@ -529,7 +529,7 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 		md := c.client.GetMetadataList([]BookID{})
 		bc.Count = len(md)
 		bcJSON, _ := json.Marshal(bc)
-		payload := buildJSONpayload(bcJSON, OK)
+		payload := buildJSONpayload(bcJSON, ok)
 		// Send our count
 		err := c.writeTCP(payload)
 		if err != nil {
@@ -537,7 +537,7 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 		}
 		for _, m := range md {
 			mJSON, _ := json.Marshal(m)
-			payload := buildJSONpayload(mJSON, OK)
+			payload := buildJSONpayload(mJSON, ok)
 			err := c.writeTCP(payload)
 			if err != nil {
 				return err
@@ -557,7 +557,7 @@ func (c *calConn) resendMetadataList(bookList []BookID) error {
 	}
 	for _, md := range mdList {
 		mJSON, _ := json.Marshal(md)
-		payload := buildJSONpayload(mJSON, OK)
+		payload := buildJSONpayload(mJSON, ok)
 		err := c.writeTCP(payload)
 		if err != nil {
 			return err
@@ -588,7 +588,7 @@ func (c *calConn) updateDeviceMetadata(data map[string]interface{}) error {
 
 		// Opcode should be SEND_BOOK_METADATA. If it's not, something
 		// has gone rather wrong
-		if opcode != SEND_BOOK_METADATA {
+		if opcode != sendBookMetadata {
 			return errors.New("unexpected calibre packet type")
 		}
 		err = mapstructure.Decode(newdata, &bkMD)
@@ -627,7 +627,7 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 			bookDet.Lpath = l
 			newLP := NewLpath{Lpath: bookDet.Lpath}
 			lpJSON, _ := json.Marshal(newLP)
-			payload := buildJSONpayload(lpJSON, OK)
+			payload := buildJSONpayload(lpJSON, ok)
 			c.writeTCP(payload)
 		} else {
 			c.writeTCP([]byte(c.okStr))
@@ -665,7 +665,7 @@ func (c *calConn) deleteBook(data map[string]interface{}) error {
 			return err
 		}
 		calConfirm, _ := json.Marshal(map[string]string{"uuid": bd.UUID})
-		payload := buildJSONpayload(calConfirm, OK)
+		payload := buildJSONpayload(calConfirm, ok)
 		c.writeTCP(payload)
 		c.ucdb.removeEntry(Lpath, lp)
 	}
@@ -695,7 +695,7 @@ func (c *calConn) getBook(data map[string]interface{}) error {
 		FileLength:       len,
 	}
 	gbJSON, _ := json.Marshal(gb)
-	payload := buildJSONpayload(gbJSON, OK)
+	payload := buildJSONpayload(gbJSON, ok)
 	c.writeTCP(payload)
 	_, err = io.CopyN(c.tcpConn, bk, len)
 	if err != nil {

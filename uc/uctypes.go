@@ -30,37 +30,37 @@ import (
 type calOpCode int
 type calMsgCode int
 type ucdbSearchType int
-type UCLogLevel int
-type UCStatus int
+type LogLevel int
+type Status int
 
 // Calibre opcodes
 const (
-	NOOP                    calOpCode = 12
-	OK                      calOpCode = 0
-	BOOK_DONE               calOpCode = 11
-	CALIBRE_BUSY            calOpCode = 18
-	SET_LIBRARY_INFO        calOpCode = 19
-	DELETE_BOOK             calOpCode = 13
-	DISPLAY_MESSAGE         calOpCode = 17
-	FREE_SPACE              calOpCode = 5
-	GET_BOOK_FILE_SEGMENT   calOpCode = 14
-	GET_BOOK_METADATA       calOpCode = 15
-	GET_BOOK_COUNT          calOpCode = 6
-	GET_DEVICE_INFORMATION  calOpCode = 3
-	GET_INITIALIZATION_INFO calOpCode = 9
-	SEND_BOOKLISTS          calOpCode = 7
-	SEND_BOOK               calOpCode = 8
-	SEND_BOOK_METADATA      calOpCode = 16
-	SET_CALIBRE_DEVICE_INFO calOpCode = 1
-	SET_CALIBRE_DEVICE_NAME calOpCode = 2
-	TOTAL_SPACE             calOpCode = 4
+	noop                  calOpCode = 12
+	ok                    calOpCode = 0
+	bookDone              calOpCode = 11
+	calibreBusy           calOpCode = 18
+	setLibraryInfo        calOpCode = 19
+	deleteBook            calOpCode = 13
+	displayMessage        calOpCode = 17
+	freeSpace             calOpCode = 5
+	getBookFileSegment    calOpCode = 14
+	getBookMetadata       calOpCode = 15
+	getBookCount          calOpCode = 6
+	getDeviceInformation  calOpCode = 3
+	getInitializationInfo calOpCode = 9
+	sendBooklists         calOpCode = 7
+	sendBook              calOpCode = 8
+	sendBookMetadata      calOpCode = 16
+	setCalibreDeviceInfo  calOpCode = 1
+	setCalibreDeviceName  calOpCode = 2
+	totalSpace            calOpCode = 4
 )
 
 // Calibre essage codes
 const (
-	MESSAGE_PASSWORD_ERROR = 1
-	MESSAGE_UPDATE_NEEDED  = 2
-	MESSAGE_SHOW_TOAST     = 3
+	passwordError calMsgCode = 1
+	updateNeeded  calMsgCode = 2
+	showToast     calMsgCode = 3
 )
 
 // ucdb search types
@@ -71,14 +71,14 @@ const (
 
 // UNCaGED log levels
 const (
-	Info UCLogLevel = iota
+	Info LogLevel = iota
 	Warn
 	Debug
 )
 
 // UNCaGED status indicators
 const (
-	SearchingCalibre UCStatus = iota
+	SearchingCalibre Status = iota
 	Connecting
 	Connected
 	Disconnected
@@ -136,9 +136,9 @@ type Client interface {
 	// status: What UC is currently doing (eg: receiving book(s))
 	// progress: If the current status has a progress associated with it, progress will be
 	//           between 0 & 100. Otherwise progress will be negative
-	UpdateStatus(status UCStatus, progress int)
+	UpdateStatus(status Status, progress int)
 	// Instructs the client to log informational and debug info, that aren't errors
-	LogPrintf(logLevel UCLogLevel, format string, a ...interface{})
+	LogPrintf(logLevel LogLevel, format string, a ...interface{})
 }
 
 // calConn holds all parameters required to implement a calibre connection
