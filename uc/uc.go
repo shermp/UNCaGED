@@ -87,7 +87,7 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 		c.calibreAddr = addr
 	// A timeout just in case we receive no reply
 	case <-time.After(5 * time.Second):
-		retErr = errors.New("calibre server not found")
+		retErr = CalibreNotFound
 	}
 	return c, retErr
 }
@@ -408,7 +408,7 @@ func (c *calConn) handleMessage(data map[string]interface{}) error {
 		c.serverPassword = c.client.GetPassword(c.calibreInfo)
 		if c.serverPassword == "" {
 			c.client.UpdateStatus(EmptyPasswordReceived, -1)
-			return errors.New("no password entered")
+			return NoPassword
 		}
 		return c.establishTCP()
 	}

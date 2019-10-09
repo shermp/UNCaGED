@@ -32,6 +32,17 @@ type calMsgCode int
 type ucdbSearchType int
 type LogLevel int
 type Status int
+type CalError string
+
+// Specific Calibre errors that should be handled
+const (
+	CalibreNotFound CalError = "calibre server not found"
+	NoPassword      CalError = "no password found"
+)
+
+func (ce CalError) Error() string {
+	return string(ce)
+}
 
 // Calibre opcodes
 const (
