@@ -85,8 +85,7 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	if len(c.calibreInstances) == 0 {
 		return nil, CalibreNotFound
 	}
-	instance := c.client.SelectCalibreInstance(c.calibreInstances)
-	c.calibreAddr = instance.Addr
+	c.calibreAddr = c.client.SelectCalibreInstance(c.calibreInstances).Addr
 	return c, retErr
 }
 
@@ -637,6 +636,10 @@ func (c *calConn) sendBook(data map[string]interface{}) (err error) {
 			c.writeTCP([]byte(c.okStr))
 		}
 	}
+	// we need to give the client time to download and process the book. Let's be pessimistic and assume
+	// the process happens at 100KB/s
+	saveTimeout := time.Duration(int(float64(bookDet.Length)/float64(102400)+1) * 2)
+	c.tcpConn.SetDeadline(time.Now().Add(saveTimeout * time.Second))
 	if err = c.client.SaveBook(bookDet.Metadata, c.tcpReader, bookDet.Length, lastBook); err != nil {
 		return err
 	}
