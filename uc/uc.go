@@ -42,14 +42,9 @@ const bookPacketContentLen = 4096
 
 // buildJSONpayload builds a payload in the format that Calibre expects
 func buildJSONpayload(jsonBytes []byte, op calOpCode) []byte {
-	prefix := []byte("[" + strconv.Itoa(int(op)) + ",")
-	suffix := []byte("]")
-	frameSz := len(prefix) + len(jsonBytes) + len(suffix)
-	payloadSz := []byte(strconv.Itoa(frameSz))
-	payload := []byte{}
-	payload = append(payloadSz, prefix...)
-	payload = append(payload, jsonBytes...)
-	payload = append(payload, suffix...)
+	// Take the Calibre approach of building the payload
+	frame := fmt.Sprintf("[%d,%s]", op, jsonBytes)
+	payload := []byte(fmt.Sprintf("%d%s", len(frame), frame))
 	return payload
 }
 
