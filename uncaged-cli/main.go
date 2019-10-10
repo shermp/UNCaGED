@@ -95,7 +95,7 @@ func (cli *UncagedCLI) saveDriveInfoFile() error {
 }
 
 // GetClientOptions returns all the client specific options required for UNCaGED
-func (cli *UncagedCLI) GetClientOptions() uc.ClientOptions {
+func (cli *UncagedCLI) GetClientOptions() (uc.ClientOptions, error) {
 	var opts uc.ClientOptions
 	opts.ClientName = "UNCaGED"
 	opts.CoverDims.Height = 530
@@ -103,15 +103,15 @@ func (cli *UncagedCLI) GetClientOptions() uc.ClientOptions {
 	opts.SupportedExt = []string{"epub", "mobi"}
 	opts.DeviceName = cli.deviceName
 	opts.DeviceModel = cli.deviceModel
-	return opts
+	return opts, nil
 }
 
 // GetDeviceBookList returns a slice of all the books currently on the device
 // A nil slice is interpreted has having no books on the device
-func (cli *UncagedCLI) GetDeviceBookList() []uc.BookCountDetails {
+func (cli *UncagedCLI) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	mdLen := len(cli.metadata)
 	if mdLen == 0 {
-		return nil
+		return nil, nil
 	}
 	bookDet := make([]uc.BookCountDetails, mdLen)
 	for i, md := range cli.metadata {
@@ -129,14 +129,14 @@ func (cli *UncagedCLI) GetDeviceBookList() []uc.BookCountDetails {
 		}
 		bookDet[i] = bd
 	}
-	return bookDet
+	return bookDet, nil
 }
 
 // GetMetadataList sends complete metadata for the books listed in lpaths, or for
 // all books on device if lpaths is empty
-func (cli *UncagedCLI) GetMetadataList(books []uc.BookID) []map[string]interface{} {
+func (cli *UncagedCLI) GetMetadataList(books []uc.BookID) ([]map[string]interface{}, error) {
 	if len(books) == 0 {
-		return cli.metadata
+		return cli.metadata, nil
 	}
 	mdList := []map[string]interface{}{}
 	for _, bk := range books {
@@ -146,24 +146,25 @@ func (cli *UncagedCLI) GetMetadataList(books []uc.BookID) []map[string]interface
 			}
 		}
 	}
-	return mdList
+	return mdList, nil
 }
 
 // GetDeviceInfo asks the client for information about the drive info to use
-func (cli *UncagedCLI) GetDeviceInfo() uc.DeviceInfo {
-	return cli.deviceInfo
+func (cli *UncagedCLI) GetDeviceInfo() (uc.DeviceInfo, error) {
+	return cli.deviceInfo, nil
 }
 
 // SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
 // struct DevInfo is modified.
-func (cli *UncagedCLI) SetDeviceInfo(devInfo uc.DeviceInfo) {
+func (cli *UncagedCLI) SetDeviceInfo(devInfo uc.DeviceInfo) error {
 	cli.deviceInfo = devInfo
 	cli.saveDriveInfoFile()
+	return nil
 }
 
 // UpdateMetadata instructs the client to update their metadata according to the
 // new slice of metadata maps
-func (cli *UncagedCLI) UpdateMetadata(mdList []map[string]interface{}) {
+func (cli *UncagedCLI) UpdateMetadata(mdList []map[string]interface{}) error {
 	// This is ugly. Is there a better way to do it?
 	for _, newMD := range mdList {
 		newMDlpath := newMD["lpath"].(string)
@@ -175,12 +176,13 @@ func (cli *UncagedCLI) UpdateMetadata(mdList []map[string]interface{}) {
 		}
 	}
 	cli.saveMDfile()
+	return nil
 }
 
 // GetPassword gets a password from the user.
-func (cli *UncagedCLI) GetPassword(calibreInfo uc.CalibreInitInfo) string {
+func (cli *UncagedCLI) GetPassword(calibreInfo uc.CalibreInitInfo) (string, error) {
 	// For testing purposes ONLY
-	return "uncaged"
+	return "uncaged", nil
 }
 
 // GetFreeSpace reports the amount of free storage space to Calibre
@@ -254,12 +256,12 @@ func (cli *UncagedCLI) DeleteBook(book uc.BookID) error {
 	cli.saveMDfile()
 	return nil
 }
-func (cli *UncagedCLI) UpdateStatus(status uc.UCStatus, progress int) {
+func (cli *UncagedCLI) UpdateStatus(status uc.Status, progress int) {
 
 }
 
 // LogPrintf instructs the client to log stuff
-func (cli *UncagedCLI) LogPrintf(logLevel uc.UCLogLevel, format string, a ...interface{}) {
+func (cli *UncagedCLI) LogPrintf(logLevel uc.LogLevel, format string, a ...interface{}) {
 	fmt.Printf(format, a...)
 }
 
