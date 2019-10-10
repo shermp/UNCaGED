@@ -701,6 +701,10 @@ func (c *calConn) getBook(data map[string]interface{}) error {
 	gbJSON, _ := json.Marshal(gb)
 	payload := buildJSONpayload(gbJSON, ok)
 	c.writeTCP(payload)
+	// we need to make sure the TCP connection doesn't timeout for large books
+	// Let's be pessimistic and assume the process happens at 100KB/s
+	sendTimeout := time.Duration(int(float64(len)/float64(102400)+1) * 2)
+	c.tcpConn.SetDeadline(time.Now().Add(sendTimeout * time.Second))
 	_, err = io.CopyN(c.tcpConn, bk, len)
 	if err != nil {
 		bk.Close()
