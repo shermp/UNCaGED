@@ -133,13 +133,15 @@ type Client interface {
 	GetPassword(calibreInfo CalibreInitInfo) (password string, err error)
 	// GetFreeSpace reports the amount of free storage space to Calibre
 	GetFreeSpace() uint64
+	// CheckLpath asks the client to verify a provided Lpath, and change it if required
+	// Return the original string if the Lpath does not need changing
+	CheckLpath(lpath string) (newLpath string)
 	// SaveBook saves a book with the provided metadata to the disk.
-	// Implementations return an io.WriteCloser (book) for UNCaGED to write the ebook to
-	// len informs the client of the expected book size that will be written
+	// Implementations saves the book from the provided io.Reader, which will be 'len' bytes long
 	// lastBook informs the client that this is the last book for this transfer
 	// newLpath informs UNCaGED of an Lpath change. Use this if the lpath field in md is
 	// not valid (eg filesystem limitations.). Return an empty string if original lpath is valid
-	SaveBook(md map[string]interface{}, len int, lastBook bool) (book io.WriteCloser, newLpath string, err error)
+	SaveBook(md map[string]interface{}, book io.Reader, len int, lastBook bool) error
 	// GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
 	// NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
 	// change at any time, so best to handle it anyway.

@@ -22,6 +22,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -203,17 +204,27 @@ func (cli *UncagedCLI) GetFreeSpace() uint64 {
 	return 1024 * 1024 * 1024
 }
 
+// CheckLpath asks the client to verify a provided Lpath, and change it if required
+// Return the original string if the Lpath does not need changing
+func (cli *UncagedCLI) CheckLpath(lpath string) string {
+	return lpath
+}
+
 // SaveBook saves a book with the provided metadata to the disk.
 // Implementations return an io.WriteCloser for UNCaGED to write the ebook to
-func (cli *UncagedCLI) SaveBook(md map[string]interface{}, len int, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
+func (cli *UncagedCLI) SaveBook(md map[string]interface{}, book io.Reader, len int, lastBook bool) (err error) {
+	err = nil
 	bookExists := false
 	lpath := md["lpath"].(string)
 	bookPath := filepath.Join(cli.bookDir, lpath)
 	dir, _ := filepath.Split(bookPath)
 	os.MkdirAll(dir, 0777)
 	bookFile, err := os.OpenFile(bookPath, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		return nil, "", err
+	written, err := io.CopyN(bookFile, book, int64(len))
+	if written != int64(len) {
+		return errors.New("Number of bytes written different from expected")
+	} else if err != nil {
+		return err
 	}
 	for i, m := range cli.metadata {
 		currLpath := m["lpath"].(string)
@@ -228,7 +239,7 @@ func (cli *UncagedCLI) SaveBook(md map[string]interface{}, len int, lastBook boo
 	if lastBook {
 		cli.saveMDfile()
 	}
-	return bookFile, "", nil
+	return err
 }
 
 // GetBook provides an io.ReadCloser, from which UNCaGED can send the requested book to Calibre

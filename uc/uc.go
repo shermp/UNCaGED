@@ -615,10 +615,9 @@ func (c *calConn) updateDeviceMetadata(data map[string]interface{}) error {
 
 // sendBook is where the magic starts to happen. It recieves one
 // or more books from calibre.
-func (c *calConn) sendBook(data map[string]interface{}) error {
+func (c *calConn) sendBook(data map[string]interface{}) (err error) {
 	var bookDet SendBook
-	err := mapstructure.Decode(data, &bookDet)
-	if err != nil {
+	if err = mapstructure.Decode(data, &bookDet); err != nil {
 		return err
 	}
 	c.debugLogPrintf("Send Book detail is: %+v\n", bookDet)
@@ -629,14 +628,12 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 	if bookDet.ThisBook == (bookDet.TotalBooks - 1) {
 		lastBook = true
 	}
-	w, l, err := c.client.SaveBook(bookDet.Metadata, bookDet.Length, lastBook)
-	if err != nil {
-		return err
-	}
+	newLpath := c.client.CheckLpath(bookDet.Lpath)
 	if bookDet.WantsSendOkToSendbook {
 		c.debugLogPrintf("Sending OK-to-send packet\n")
-		if bookDet.CanSupportLpathChanges && l != "" {
-			bookDet.Lpath = l
+		if bookDet.CanSupportLpathChanges && newLpath != bookDet.Lpath {
+			bookDet.Lpath = newLpath
+			bookDet.Metadata["lpath"] = newLpath
 			newLP := NewLpath{Lpath: bookDet.Lpath}
 			lpJSON, _ := json.Marshal(newLP)
 			payload := buildJSONpayload(lpJSON, ok)
@@ -645,13 +642,10 @@ func (c *calConn) sendBook(data map[string]interface{}) error {
 			c.writeTCP([]byte(c.okStr))
 		}
 	}
-	n, err := io.CopyN(w, c.tcpReader, int64(bookDet.Length))
-	if err != nil || n != int64(bookDet.Length) {
-		w.Close()
+	if err = c.client.SaveBook(bookDet.Metadata, c.tcpReader, bookDet.Length, lastBook); err != nil {
 		return err
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
-	w.Close()
 	c.ucdb.addEntry(bookDet.Metadata)
 	progress := ((bookDet.ThisBook + 1) * 100) / bookDet.TotalBooks
 	c.client.UpdateStatus(ReceivingBook, progress)
