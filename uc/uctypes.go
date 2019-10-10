@@ -109,6 +109,10 @@ type UncagedDB struct {
 // Client is the interface that specific implementations of UNCaGED must implement.
 // Errors will be returned as-is.
 type Client interface {
+	// SelectCalibreInstance allows the client to choose a calibre instance if multiple
+	// are found on the network
+	// The function should return the instance to use
+	SelectCalibreInstance(calInstances []CalInstance) CalInstance
 	// GetClientOptions returns all the client specific options required for UNCaGED
 	GetClientOptions() (opts ClientOptions, err error)
 	// GetDeviceBookList returns a slice of all the books currently on the device
@@ -153,20 +157,26 @@ type Client interface {
 	LogPrintf(logLevel LogLevel, format string, a ...interface{})
 }
 
+type CalInstance struct {
+	Addr        string
+	Description string
+}
+
 // calConn holds all parameters required to implement a calibre connection
 type calConn struct {
-	clientOpts     ClientOptions
-	calibreAddr    string
-	calibreInfo    CalibreInitInfo
-	deviceInfo     DeviceInfo
-	okStr          string
-	serverPassword string
-	tcpConn        net.Conn
-	tcpReader      *bufio.Reader
-	ucdb           *UncagedDB
-	client         Client
-	transferCount  int
-	debug          bool
+	clientOpts       ClientOptions
+	calibreAddr      string
+	calibreInstances []CalInstance
+	calibreInfo      CalibreInitInfo
+	deviceInfo       DeviceInfo
+	okStr            string
+	serverPassword   string
+	tcpConn          net.Conn
+	tcpReader        *bufio.Reader
+	ucdb             *UncagedDB
+	client           Client
+	transferCount    int
+	debug            bool
 }
 
 // ClientOptions stores all the client specific options that a client needs

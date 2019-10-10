@@ -27,10 +27,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mitchellh/mapstructure"
@@ -76,25 +76,22 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	if c.deviceInfo, retErr = c.client.GetDeviceInfo(); retErr != nil {
 		return nil, retErr
 	}
-	udpReply := make(chan string)
 	// Calibre listens for a 'hello' UDP packet on the following
 	// five ports. We try all five ports concurrently
 	c.client.UpdateStatus(SearchingCalibre, -1)
 	bcastPorts := []int{54982, 48123, 39001, 44044, 59678}
+	wg := &sync.WaitGroup{}
+	mu := &sync.Mutex{}
 	for _, p := range bcastPorts {
-		go c.findCalibre(p, udpReply)
+		wg.Add(1)
+		go c.findCalibre(p, mu, wg)
 	}
-
-	select {
-	// We choose the first reply we recieve, which is a string
-	// containing the IP address and port to connect to
-	case addr := <-udpReply:
-		c.debugLogPrintf("Calibre Address %s", addr)
-		c.calibreAddr = addr
-	// A timeout just in case we receive no reply
-	case <-time.After(5 * time.Second):
-		retErr = CalibreNotFound
+	wg.Wait()
+	if len(c.calibreInstances) == 0 {
+		return nil, CalibreNotFound
 	}
+	instance := c.client.SelectCalibreInstance(c.calibreInstances)
+	c.calibreAddr = instance.Addr
 	return c, retErr
 }
 
@@ -725,36 +722,37 @@ func (c *calConn) getBook(data map[string]interface{}) error {
 // findCalibre performs the original search for a Calibre instance, using
 // UDP. Note, if there are multple calibre instances with their wireless
 // connection active, we select the first that responds.
-func (c *calConn) findCalibre(bcastPort int, calibreAddr chan<- string) {
+func (c *calConn) findCalibre(bcastPort int, mu *sync.Mutex, wg *sync.WaitGroup) {
+	defer wg.Done()
 	localAddress := "0.0.0.0:0"
 	portStr := fmt.Sprintf("%d", bcastPort)
 	bcastAddress := "255.255.255.255:" + portStr
 	pc, err := net.ListenPacket("udp", localAddress)
 	if err != nil {
-		log.Print(err)
+		c.client.LogPrintf(Info, "%v\n", err)
 	}
 	defer pc.Close()
 	calibreReply := make([]byte, 256)
 	udpAddr, _ := net.ResolveUDPAddr("udp", bcastAddress)
 	pc.WriteTo([]byte("hello"), udpAddr)
-	deadlineTime := time.Now().Add(5 * time.Second)
+	deadlineTime := time.Now().Add(1 * time.Second)
 	pc.SetReadDeadline(deadlineTime)
-	bytesRead, addr, err := pc.ReadFrom(calibreReply)
-	if e, ok := err.(net.Error); ok && e.Timeout() {
-		pc.Close()
-		return
-	} else if err != nil {
-		log.Print(err)
-		return
-	}
-	calibreIP, _, _ := net.SplitHostPort(addr.String())
-	calibreMsg := string(calibreReply[:bytesRead])
-	msgData := strings.Split(calibreMsg, ",")
-	calibrePort := msgData[len(msgData)-1]
-	select {
-	case calibreAddr <- calibreIP + ":" + calibrePort:
-		return
-	case <-time.After(2 * time.Second):
-		return
+	for {
+		bytesRead, addr, err := pc.ReadFrom(calibreReply)
+		if e, ok := err.(net.Error); ok && e.Timeout() {
+			pc.Close()
+			return
+		} else if err != nil {
+			c.client.LogPrintf(Info, "%v\n", err)
+			return
+		}
+		calibreIP, _, _ := net.SplitHostPort(addr.String())
+		calibreMsg := string(calibreReply[:bytesRead])
+		msgData := strings.Split(calibreMsg, ",")
+		calibrePort := msgData[len(msgData)-1]
+		instance := CalInstance{Addr: calibreIP + ":" + calibrePort, Description: msgData[0]}
+		mu.Lock()
+		c.calibreInstances = append(c.calibreInstances, instance)
+		mu.Unlock()
 	}
 }

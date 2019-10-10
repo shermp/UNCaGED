@@ -94,6 +94,18 @@ func (cli *UncagedCLI) saveDriveInfoFile() error {
 	return ioutil.WriteFile(cli.drivinfoFile, diJSON, 0644)
 }
 
+// SelectCalibreInstance allows the client to choose a calibre instance if multiple
+// are found on the network
+// The function should return the instance to use
+func (cli *UncagedCLI) SelectCalibreInstance(calInstances []uc.CalInstance) uc.CalInstance {
+	fmt.Println("The following Calibre instances were found:")
+	for i, instance := range calInstances {
+		fmt.Printf("\t%d. %s at %s\n", i, instance.Description, instance.Addr)
+	}
+	fmt.Println("Automatically selecting the first Calibre instance...")
+	return calInstances[0]
+}
+
 // GetClientOptions returns all the client specific options required for UNCaGED
 func (cli *UncagedCLI) GetClientOptions() (uc.ClientOptions, error) {
 	var opts uc.ClientOptions
