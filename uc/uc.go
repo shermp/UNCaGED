@@ -25,6 +25,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -34,7 +35,6 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 )
 
 const tcpDeadlineTimeout = 15
@@ -57,19 +57,19 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	c.debug = enableDebug
 	c.client = client
 	c.clientOpts, retErr = c.client.GetClientOptions()
+	if retErr != nil {
+		return nil, fmt.Errorf("New: Error getting client options: %w", retErr)
+	}
 	c.transferCount = 0
 	c.okStr = "6[0,{}]"
-	if retErr != nil {
-		return nil, retErr
-	}
 	c.ucdb = &UncagedDB{}
 	bookList, retErr := c.client.GetDeviceBookList()
 	if retErr != nil {
-		return nil, retErr
+		return nil, fmt.Errorf("New: Error getting booklist from device: %w", retErr)
 	}
 	c.ucdb.initDB(bookList)
 	if c.deviceInfo, retErr = c.client.GetDeviceInfo(); retErr != nil {
-		return nil, retErr
+		return nil, fmt.Errorf("New: Error getting info from device: %w", retErr)
 	}
 	// Calibre listens for a 'hello' UDP packet on the following
 	// five ports. We try all five ports concurrently
@@ -83,7 +83,7 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	}
 	wg.Wait()
 	if len(c.calibreInstances) == 0 {
-		return nil, CalibreNotFound
+		return nil, fmt.Errorf("New: Could not find calibre instance: %w", CalibreNotFound)
 	}
 	c.calibreAddr = c.client.SelectCalibreInstance(c.calibreInstances).Addr
 	return c, retErr
@@ -102,7 +102,7 @@ func (ucdb *UncagedDB) find(searchType ucdbSearchType, value interface{}) (int, 
 	bd := BookCountDetails{}
 	var index int
 	var err error
-	err = errors.New("no match")
+	err = fmt.Errorf("find: no match")
 	// Simple linear search. Not very efficient, be we shouldn't be doing this too often
 	switch searchType {
 	case PriKey:
@@ -116,7 +116,7 @@ func (ucdb *UncagedDB) find(searchType ucdbSearchType, value interface{}) (int, 
 				}
 			}
 		} else {
-			err = errors.New("invalid type. Expecting integer")
+			err = fmt.Errorf("find: invalid type. Expecting integer")
 		}
 	case Lpath:
 		if l, ok := value.(string); ok {
@@ -129,7 +129,7 @@ func (ucdb *UncagedDB) find(searchType ucdbSearchType, value interface{}) (int, 
 				}
 			}
 		} else {
-			err = errors.New("invalid type. Expecting string")
+			err = fmt.Errorf("find: invalid type. Expecting string")
 		}
 	}
 	return index, bd, err
@@ -150,11 +150,11 @@ func (ucdb *UncagedDB) addEntry(md map[string]interface{}) error {
 	}
 	decoder, err := mapstructure.NewDecoder(&config)
 	if err != nil {
-		return err
+		return fmt.Errorf("addEntry: could not create decoder: %w", err)
 	}
 	decoder.Decode(md)
 	if err != nil {
-		return errors.Wrap(err, "could not decode metadata")
+		return fmt.Errorf("addEntry: could not decode metadata: %w", err)
 	}
 	bd.PriKey = ucdb.newPriKey()
 	ucdb.booklist = append(ucdb.booklist, bd)
@@ -165,7 +165,7 @@ func (ucdb *UncagedDB) addEntry(md map[string]interface{}) error {
 func (ucdb *UncagedDB) removeEntry(searchType ucdbSearchType, value interface{}) error {
 	index, _, err := ucdb.find(searchType, value)
 	if err != nil {
-		return errors.Wrap(err, "search failed")
+		return fmt.Errorf("removeEntry: search failed: %w", err)
 	}
 	ucdb.booklist = append(ucdb.booklist[:index], ucdb.booklist[index+1:]...)
 	return nil
@@ -185,7 +185,7 @@ func (c *calConn) Start() (err error) {
 	c.client.UpdateStatus(Connecting, -1)
 	err = c.establishTCP()
 	if err != nil {
-		return errors.Wrap(err, "establishing connection failed")
+		return fmt.Errorf("Start: establishing connection failed: %w", err)
 	}
 	// Connect to Calibre
 	// Keep reading untill the connection is closed
@@ -196,7 +196,7 @@ func (c *calConn) Start() (err error) {
 				c.debugLogPrintf("TCP Connection Closed")
 				return nil
 			}
-			return errors.Wrap(err, "packet reading failed")
+			return fmt.Errorf("Start: packet reading failed: %w", err)
 		}
 		c.debugLogPrintf("Calibre Opcode received: %v\n", opcode)
 		switch opcode {
@@ -229,7 +229,7 @@ func (c *calConn) Start() (err error) {
 			if err == io.EOF {
 				return nil
 			}
-			return err
+			return fmt.Errorf("Start: exiting with error: %w", err)
 		}
 	}
 }
@@ -242,9 +242,8 @@ func (c *calConn) debugLogPrintf(format string, a ...interface{}) {
 
 func (c *calConn) decodeCalibrePayload(payload []byte) (calOpCode, map[string]interface{}, error) {
 	var calibreDat []interface{}
-	err := json.Unmarshal(payload, &calibreDat)
-	if err != nil {
-		return -1, nil, errors.Wrap(err, "could not unmarshal payload")
+	if err := json.Unmarshal(payload, &calibreDat); err != nil {
+		return -1, nil, fmt.Errorf("decodeCalibrePayload: could not unmarshal payload: %w", err)
 	}
 	// The first element should always be an opcode
 	opcode := calOpCode(calibreDat[0].(float64))
@@ -259,11 +258,11 @@ func (c *calConn) readDecodeCalibrePayload() (calOpCode, map[string]interface{},
 			c.client.UpdateStatus(Disconnected, -1)
 			return noop, nil, err
 		}
-		return noop, nil, errors.Wrap(err, "connection closed")
+		return noop, nil, fmt.Errorf("readDecodeCalibrePayload: connection closed: %w", err)
 	}
 	opcode, data, err := c.decodeCalibrePayload(payload)
 	if err != nil {
-		return noop, nil, errors.Wrap(err, "packet decoding failed")
+		return noop, nil, fmt.Errorf("readDecodeCalibrePayload: packet decoding failed: %w", err)
 	}
 	return opcode, data, nil
 }
@@ -286,7 +285,7 @@ func (c *calConn) establishTCP() error {
 	// Connect to Calibre
 	c.tcpConn, err = net.Dial("tcp", c.calibreAddr)
 	if err != nil {
-		return errors.Wrap(err, "calibre connection failed")
+		return fmt.Errorf("establishTCP: dialing calibre failed: %w", err)
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	c.tcpReader = bufio.NewReader(c.tcpConn)
@@ -295,11 +294,12 @@ func (c *calConn) establishTCP() error {
 
 // Convenience function to handle writing to our TCP connection, and manage the deadline
 func (c *calConn) writeTCP(payload []byte) error {
+	var terr net.Error
 	_, err := c.tcpConn.Write(payload)
-	if e, ok := err.(net.Error); ok && e.Timeout() {
-		return errors.Wrap(err, "connection timed out!")
+	if errors.As(err, &terr) && terr.Timeout() {
+		return fmt.Errorf("writeTCP: connection timed out: %w", err)
 	} else if err != nil {
-		return errors.Wrap(err, "write to tcp connection failed")
+		return fmt.Errorf("writeTCP: write to tcp connection failed: %w", err)
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	return nil
@@ -307,16 +307,17 @@ func (c *calConn) writeTCP(payload []byte) error {
 
 // readTCP reads and parses a Calibre packet from the TCP connection
 func (c *calConn) readTCP() ([]byte, error) {
+	var terr net.Error
 	// Read Size of the payload. The payload looks like
 	// 13[0,{"foo":1}]
 	msgSz, err := c.tcpReader.ReadBytes('[')
-	buffLen := len(msgSz)
-	if e, ok := err.(net.Error); ok && e.Timeout() {
-		return nil, errors.Wrap(err, "connection timed out!")
+	if errors.As(err, &terr) && terr.Timeout() {
+		return nil, fmt.Errorf("readTCP: connection timed out: %w", err)
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("readTCP: ReadBytes failed: %w", err)
 	}
+	buffLen := len(msgSz)
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	// Put that '[' character back into the buffer. Our JSON
 	// parser will need it later...
@@ -328,16 +329,16 @@ func (c *calConn) readTCP() ([]byte, error) {
 	}
 	sz, err := strconv.Atoi(string(msgSz))
 	if err != nil {
-		return nil, errors.Wrap(err, "error decoding payload size")
+		return nil, fmt.Errorf("readTCP: error decoding payload size: %w", err)
 	}
 	// We have our payload size. Create the appropriate buffer.
 	// and read into it.
 	payload := make([]byte, sz)
 	io.ReadFull(c.tcpReader, payload)
-	if e, ok := err.(net.Error); ok && e.Timeout() {
-		return nil, errors.Wrap(err, "connection timed out!")
+	if errors.As(err, &terr) && terr.Timeout() {
+		return nil, fmt.Errorf("readTCP: connection timed out: %w", err)
 	} else if err != nil {
-		return nil, errors.Wrap(err, "did not receive full payload")
+		return nil, fmt.Errorf("readTCP: did not receive full payload: %w", err)
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	return payload, nil
@@ -351,7 +352,7 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 		c.client.UpdateStatus(Idle, -1)
 		err := c.writeTCP([]byte(c.okStr))
 		if err != nil {
-			return err
+			return fmt.Errorf("handleNoop: %w", err)
 		}
 		// Calibre also uses noops to request more metadata from books
 		// on device. We handle that case here.
@@ -372,21 +373,21 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 				if err == io.EOF {
 					return err
 				}
-				return errors.Wrap(err, "packet reading failed")
+				return fmt.Errorf("handleNoop: packet reading failed: %w", err)
 			}
 			if opcode != noop {
-				return errors.New("noop expected")
+				return fmt.Errorf("handleNoop: noop expected")
 			}
 			_, bd, err := c.ucdb.find(PriKey, int(newdata["priKey"].(float64)))
 			if err != nil {
-				return errors.Wrap(err, "could not find book in db")
+				return fmt.Errorf("handleNoop: %w", err)
 			}
 			bID := BookID{Lpath: bd.Lpath, UUID: bd.UUID}
 			bookList[i] = bID
 		}
 		err := c.resendMetadataList(bookList)
 		if err != nil {
-			return errors.Wrap(err, "error resending metadata")
+			return fmt.Errorf("handleNoop: error resending metadata: %w", err)
 		}
 	}
 	return nil
@@ -395,7 +396,7 @@ func (c *calConn) handleNoop(data map[string]interface{}) error {
 // handleMessage deals with message packets from Calibre, instead of the normal
 // opcode packets. We currently handle password error messages only.
 func (c *calConn) handleMessage(data map[string]interface{}) error {
-	err := error(nil)
+	var err error
 	msgType := calMsgCode(data["messageKind"].(float64))
 	switch msgType {
 	case passwordError:
@@ -404,7 +405,7 @@ func (c *calConn) handleMessage(data map[string]interface{}) error {
 		c.tcpConn.Close()
 		// Ask the user for a password
 		if c.serverPassword, err = c.client.GetPassword(c.calibreInfo); err != nil {
-			return err
+			return fmt.Errorf("handleMessage: error retrieving password: %w", err)
 		}
 		if c.serverPassword == "" {
 			c.client.UpdateStatus(EmptyPasswordReceived, -1)
@@ -419,7 +420,7 @@ func (c *calConn) handleMessage(data map[string]interface{}) error {
 func (c *calConn) getInitInfo(data map[string]interface{}) error {
 	err := mapstructure.Decode(data, &c.calibreInfo)
 	if err != nil {
-		return err
+		return fmt.Errorf("getInitInfo: error decoding calibre data: %w", err)
 	}
 	extPathLen := make(map[string]int)
 	for _, e := range c.clientOpts.SupportedExt {
@@ -480,11 +481,11 @@ func (c *calConn) setDeviceInfo(data map[string]interface{}) error {
 	}
 	decoder, err := mapstructure.NewDecoder(&config)
 	if err != nil {
-		return err
+		return fmt.Errorf("setDeviceInfo: error creating ms decoder: %w", err)
 	}
 	decoder.Decode(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("setDeviceInfo: error decoding data: %w", err)
 	}
 	c.client.SetDeviceInfo(devInfo)
 	return c.writeTCP([]byte(c.okStr))
@@ -503,6 +504,7 @@ func (c *calConn) getFreeSpace() error {
 // getBookCount sends Calibre a list of ebooks currently on the device.
 // It is up to the client to decide how this list is derived
 func (c *calConn) getBookCount(data map[string]interface{}) error {
+	var err error
 	bc := BookCount{Count: c.ucdb.length(), WillStream: true, WillScan: true}
 	// when setting "willUseCachedMetadata" to true, Calibre is expecting a list
 	// of books with abridged metadata (the contents of the bookCountDetails struct)
@@ -510,17 +512,15 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 		bcJSON, _ := json.Marshal(bc)
 		payload := buildJSONpayload(bcJSON, ok)
 		// Send our count
-		err := c.writeTCP(payload)
-		if err != nil {
-			return err
+		if err = c.writeTCP(payload); err != nil {
+			return fmt.Errorf("getBookCount: error sending count: %w", err)
 		}
 
 		for _, b := range c.ucdb.booklist {
 			bJSON, _ := json.Marshal(b)
 			payload = buildJSONpayload(bJSON, ok)
-			err := c.writeTCP(payload)
-			if err != nil {
-				return err
+			if err = c.writeTCP(payload); err != nil {
+				return fmt.Errorf("getBookCount: error sending bookCountDetail: %w", err)
 			}
 		}
 		// Otherwise, Calibre expects a full set of metadata for each book on the
@@ -528,22 +528,20 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 	} else {
 		md, err := c.client.GetMetadataList([]BookID{})
 		if err != nil {
-			return err
+			return fmt.Errorf("getBookCount: error getting metadata from device: %w", err)
 		}
 		bc.Count = len(md)
 		bcJSON, _ := json.Marshal(bc)
 		payload := buildJSONpayload(bcJSON, ok)
 		// Send our count
-		err = c.writeTCP(payload)
-		if err != nil {
-			return err
+		if err = c.writeTCP(payload); err != nil {
+			return fmt.Errorf("getBookCount: error sending count: %w", err)
 		}
 		for _, m := range md {
 			mJSON, _ := json.Marshal(m)
 			payload := buildJSONpayload(mJSON, ok)
-			err := c.writeTCP(payload)
-			if err != nil {
-				return err
+			if err = c.writeTCP(payload); err != nil {
+				return fmt.Errorf("getBookCount: error sending book metadata: %w", err)
 			}
 		}
 	}
@@ -556,7 +554,7 @@ func (c *calConn) getBookCount(data map[string]interface{}) error {
 func (c *calConn) resendMetadataList(bookList []BookID) error {
 	mdList, err := c.client.GetMetadataList(bookList)
 	if err != nil {
-		return err
+		return fmt.Errorf("resendMetadataList: error getting metadata from device: %w", err)
 	}
 	if len(mdList) == 0 {
 		return c.writeTCP([]byte(c.okStr))
@@ -564,9 +562,8 @@ func (c *calConn) resendMetadataList(bookList []BookID) error {
 	for _, md := range mdList {
 		mJSON, _ := json.Marshal(md)
 		payload := buildJSONpayload(mJSON, ok)
-		err = c.writeTCP(payload)
-		if err != nil {
-			return err
+		if err = c.writeTCP(payload); err != nil {
+			return fmt.Errorf("resendMetadataList: error sending book metadata: %w", err)
 		}
 	}
 	return nil
@@ -589,17 +586,16 @@ func (c *calConn) updateDeviceMetadata(data map[string]interface{}) error {
 			if err == io.EOF {
 				return err
 			}
-			return errors.Wrap(err, "packet reading failed")
+			return fmt.Errorf("updateDeviceMetadata: packet reading failed: %w", err)
 		}
 
 		// Opcode should be SEND_BOOK_METADATA. If it's not, something
 		// has gone rather wrong
 		if opcode != sendBookMetadata {
-			return errors.New("unexpected calibre packet type")
+			return fmt.Errorf("updateDeviceMetadata: unexpected calibre packet type")
 		}
-		err = mapstructure.Decode(newdata, &bkMD)
-		if err != nil {
-			return errors.Wrap(err, "unable to decode metadata packet")
+		if err = mapstructure.Decode(newdata, &bkMD); err != nil {
+			return fmt.Errorf("updateDeviceMetadata: unable to decode metadata packet: %w", err)
 		}
 		md[i] = bkMD.Data
 	}
@@ -612,7 +608,7 @@ func (c *calConn) updateDeviceMetadata(data map[string]interface{}) error {
 func (c *calConn) sendBook(data map[string]interface{}) (err error) {
 	var bookDet SendBook
 	if err = mapstructure.Decode(data, &bookDet); err != nil {
-		return err
+		return fmt.Errorf("sendBook: error decoding book details: %w", err)
 	}
 	c.debugLogPrintf("Send Book detail is: %+v\n", bookDet)
 	if bookDet.ThisBook == 0 {
@@ -631,9 +627,13 @@ func (c *calConn) sendBook(data map[string]interface{}) (err error) {
 			newLP := NewLpath{Lpath: bookDet.Lpath}
 			lpJSON, _ := json.Marshal(newLP)
 			payload := buildJSONpayload(lpJSON, ok)
-			c.writeTCP(payload)
+			if err = c.writeTCP(payload); err != nil {
+				return fmt.Errorf("sendBook: error writing OK-to-send packet: %w", err)
+			}
 		} else {
-			c.writeTCP([]byte(c.okStr))
+			if err = c.writeTCP([]byte(c.okStr)); err != nil {
+				return fmt.Errorf("sendBook: error writing ok string: %w", err)
+			}
 		}
 	}
 	// we need to give the client time to download and process the book. Let's be pessimistic and assume
@@ -641,7 +641,7 @@ func (c *calConn) sendBook(data map[string]interface{}) (err error) {
 	saveTimeout := time.Duration(int(float64(bookDet.Length)/float64(102400)+1) * 2)
 	c.tcpConn.SetDeadline(time.Now().Add(saveTimeout * time.Second))
 	if err = c.client.SaveBook(bookDet.Metadata, c.tcpReader, bookDet.Length, lastBook); err != nil {
-		return err
+		return fmt.Errorf("sendBook: client error saving book: %w", err)
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
 	c.ucdb.addEntry(bookDet.Metadata)
@@ -652,21 +652,20 @@ func (c *calConn) sendBook(data map[string]interface{}) (err error) {
 
 // deleteBook will delete any ebook Calibre tells us to
 func (c *calConn) deleteBook(data map[string]interface{}) error {
-	err := c.writeTCP([]byte(c.okStr))
-	if err != nil {
-		return err
+	var err error
+	if err = c.writeTCP([]byte(c.okStr)); err != nil {
+		return fmt.Errorf("deleteBook: error writing ok string: %w", err)
 	}
 	var delBooks DeleteBooks
 	mapstructure.Decode(data, &delBooks)
 	for _, lp := range delBooks.Lpaths {
 		_, bd, err := c.ucdb.find(Lpath, lp)
 		if err != nil {
-			return errors.New("lpath not in db to delete")
+			return fmt.Errorf("deleteBook: lpath not in db to delete")
 		}
 		bID := BookID{Lpath: bd.Lpath, UUID: bd.UUID}
-		err = c.client.DeleteBook(bID)
-		if err != nil {
-			return err
+		if err = c.client.DeleteBook(bID); err != nil {
+			return fmt.Errorf("deleteBook: client error deleting book: %w", err)
 		}
 		calConfirm, _ := json.Marshal(map[string]string{"uuid": bd.UUID})
 		payload := buildJSONpayload(calConfirm, ok)
@@ -680,18 +679,18 @@ func (c *calConn) deleteBook(data map[string]interface{}) error {
 func (c *calConn) getBook(data map[string]interface{}) error {
 	c.client.UpdateStatus(SendingBook, -1)
 	if !data["canStreamBinary"].(bool) || !data["canStream"].(bool) {
-		return errors.New("calibre version does not support binary streaming")
+		return fmt.Errorf("getBook: calibre version does not support binary streaming")
 	}
 	lpath := data["lpath"].(string)
 	filePos := int64(data["position"].(float64))
 	_, bd, err := c.ucdb.find(Lpath, lpath)
 	if err != nil {
-		return errors.Wrap(err, "could not get book from db")
+		return fmt.Errorf("getBook: could not get book from db: %w", err)
 	}
 	bID := BookID{Lpath: lpath, UUID: bd.UUID}
 	bk, len, err := c.client.GetBook(bID, filePos)
 	if err != nil {
-		return errors.Wrap(err, "could not open book file")
+		return fmt.Errorf("getBook: could not open book file: %w", err)
 	}
 	gb := GetBook{
 		WillStream:       true,
@@ -700,15 +699,16 @@ func (c *calConn) getBook(data map[string]interface{}) error {
 	}
 	gbJSON, _ := json.Marshal(gb)
 	payload := buildJSONpayload(gbJSON, ok)
-	c.writeTCP(payload)
+	if err = c.writeTCP(payload); err != nil {
+		return fmt.Errorf("getBook: error writing GetBook payload: %w", err)
+	}
 	// we need to make sure the TCP connection doesn't timeout for large books
 	// Let's be pessimistic and assume the process happens at 100KB/s
 	sendTimeout := time.Duration(int(float64(len)/float64(102400)+1) * 2)
 	c.tcpConn.SetDeadline(time.Now().Add(sendTimeout * time.Second))
-	_, err = io.CopyN(c.tcpConn, bk, len)
-	if err != nil {
+	if _, err = io.CopyN(c.tcpConn, bk, len); err != nil {
 		bk.Close()
-		return errors.Wrap(err, "error sending book to Calibre")
+		return fmt.Errorf("getBook: error sending book to Calibre: %w", err)
 	}
 	bk.Close()
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
