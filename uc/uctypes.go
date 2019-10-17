@@ -239,17 +239,17 @@ type CalibreInit struct {
 // DeviceInfo is used by calibre to determine some more device information, including
 // memory location code, uuids, last connect datetime etc.
 type DeviceInfo struct {
-	DeviceVersion string `json:"device_version" mapstructure:"device_version"`
-	Version       string `json:"version" mapstructure:"version"`
+	DeviceVersion string `json:"device_version"`
+	Version       string `json:"version"`
 	DevInfo       struct {
-		Prefix            string    `json:"prefix" mapstructure:"prefix"`
-		CalibreVersion    string    `json:"calibre_version" mapstructure:"calibre_version"`
-		LastLibraryUUID   string    `json:"last_library_uuid" mapstructure:"last_library_uuid"`
-		DeviceName        string    `json:"device_name" mapstructure:"device_name"`
-		DateLastConnected time.Time `json:"date_last_connected" mapstructure:"date_last_connected"`
-		LocationCode      string    `json:"location_code" mapstructure:"location_code"`
-		DeviceStoreUUID   string    `json:"device_store_uuid" mapstructure:"device_store_uuid"`
-	} `json:"device_info" mapstructure:"device_info"`
+		Prefix            string    `json:"prefix"`
+		CalibreVersion    string    `json:"calibre_version"`
+		LastLibraryUUID   string    `json:"last_library_uuid"`
+		DeviceName        string    `json:"device_name"`
+		DateLastConnected time.Time `json:"date_last_connected"`
+		LocationCode      string    `json:"location_code"`
+		DeviceStoreUUID   string    `json:"device_store_uuid"`
+	} `json:"device_info"`
 }
 
 // SendBook is used to hold information about each ebook as it arrives
@@ -310,10 +310,10 @@ type BookCountReceive struct {
 // on device
 type BookCountDetails struct {
 	PriKey       int       `json:"priKey"`
-	UUID         string    `json:"uuid" mapstructure:"uuid"`
-	Extension    string    `json:"extension" mapstructure:"extension"`
-	Lpath        string    `json:"lpath" mapstructure:"lpath"`
-	LastModified time.Time `json:"last_modified" mapstructure:"last_modified"`
+	UUID         string    `json:"uuid"`
+	Extension    string    `json:"extension"`
+	Lpath        string    `json:"lpath"`
+	LastModified time.Time `json:"last_modified"`
 }
 
 // GetBookSend prepares Calibre for the book we are about to send
