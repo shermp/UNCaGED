@@ -740,9 +740,10 @@ func (c *calConn) findCalibre(bcastPort int, mu *sync.Mutex, wg *sync.WaitGroup)
 	pc.WriteTo([]byte("hello"), udpAddr)
 	deadlineTime := time.Now().Add(1 * time.Second)
 	pc.SetReadDeadline(deadlineTime)
+	var terr net.Error
 	for {
 		bytesRead, addr, err := pc.ReadFrom(calibreReply)
-		if e, ok := err.(net.Error); ok && e.Timeout() {
+		if errors.As(err, &terr) && terr.Timeout() {
 			pc.Close()
 			return
 		} else if err != nil {
