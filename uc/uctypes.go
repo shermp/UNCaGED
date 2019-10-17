@@ -22,7 +22,6 @@ package uc
 
 import (
 	"bufio"
-	"encoding/json"
 	"io"
 	"net"
 	"time"
@@ -121,7 +120,7 @@ type Client interface {
 	GetDeviceBookList() (booklist []BookCountDetails, err error)
 	// GetMetadataList sends complete metadata for the books listed in lpaths, or for
 	// all books on device if lpaths is empty
-	GetMetadataList(books []BookID) (mdList []map[string]interface{}, err error)
+	GetMetadataList(books []BookID) (mdList []CalibreBookMeta, err error)
 	// GetDeviceInfo asks the client for information about the drive info to use
 	GetDeviceInfo() (DeviceInfo, error)
 	// SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
@@ -129,7 +128,7 @@ type Client interface {
 	SetDeviceInfo(devInfo DeviceInfo) error
 	// UpdateMetadata instructs the client to update their metadata according to the
 	// new slice of metadata maps
-	UpdateMetadata(mdList []map[string]interface{}) error
+	UpdateMetadata(mdList []CalibreBookMeta) error
 	// GetPassword gets a password from the user.
 	GetPassword(calibreInfo CalibreInitInfo) (password string, err error)
 	// GetFreeSpace reports the amount of free storage space to Calibre
@@ -142,7 +141,7 @@ type Client interface {
 	// lastBook informs the client that this is the last book for this transfer
 	// newLpath informs UNCaGED of an Lpath change. Use this if the lpath field in md is
 	// not valid (eg filesystem limitations.). Return an empty string if original lpath is valid
-	SaveBook(md map[string]interface{}, book io.Reader, len int, lastBook bool) error
+	SaveBook(md CalibreBookMeta, book io.Reader, len int, lastBook bool) error
 	// GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
 	// NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
 	// change at any time, so best to handle it anyway.
@@ -261,7 +260,7 @@ type SendBook struct {
 	CanSupportLpathChanges bool            `json:"canSupportLpathChanges"`
 	Length                 int             `json:"length"`
 	WillStreamBooks        bool            `json:"willStreamBooks"`
-	Metadata               json.RawMessage `json:"metadata"`
+	Metadata               CalibreBookMeta `json:"metadata"`
 	WantsSendOkToSendbook  bool            `json:"wantsSendOkToSendbook"`
 }
 
@@ -284,10 +283,10 @@ type FreeSpace struct {
 
 // MetadataUpdate is used for sending updated metadata to the client
 type MetadataUpdate struct {
-	Count        int                    `json:"count"`
-	SupportsSync bool                   `json:"supportsSync"`
-	Data         map[string]interface{} `json:"data"`
-	Index        int                    `json:"index"`
+	Count        int             `json:"count"`
+	SupportsSync bool            `json:"supportsSync"`
+	Data         CalibreBookMeta `json:"data"`
+	Index        int             `json:"index"`
 }
 
 // BookCountSend sends the number of books on device to Calibre
@@ -344,4 +343,38 @@ type BookListsDetails struct {
 	Collections        interface{} `json:"collections"`
 	WillStreamMetadata bool        `json:"willStreamMetadata"`
 	SupportsSync       bool        `json:"supportsSync"`
+}
+
+// CalibreBookMeta contains top level metadata fields for a book from Calibre
+type CalibreBookMeta struct {
+	Authors         []string               `json:"authors"`
+	Languages       []string               `json:"languages"`
+	UserMetadata    map[string]interface{} `json:"user_metadata"`
+	UserCategories  map[string]interface{} `json:"user_categories"`
+	Comments        *string                `json:"comments"`
+	Tags            []string               `json:"tags"`
+	Pubdate         *time.Time             `json:"pubdate"`
+	SeriesIndex     *float64               `json:"series_index"`
+	Thumbnail       []interface{}          `json:"thumbnail"`
+	PublicationType *string                `json:"publication_type"`
+	Mime            *string                `json:"mime"`
+	AuthorSort      string                 `json:"author_sort"`
+	Series          *string                `json:"series"`
+	Rights          *string                `json:"rights"`
+	DbID            interface{}            `json:"db_id"`
+	Cover           *string                `json:"cover"`
+	ApplicationID   int                    `json:"application_id"`
+	BookProducer    *string                `json:"book_producer"`
+	Size            int                    `json:"size"`
+	AuthorSortMap   map[string]string      `json:"author_sort_map"`
+	Rating          *float64               `json:"rating"`
+	Lpath           string                 `json:"lpath"`
+	Publisher       *string                `json:"publisher"`
+	Timestamp       *time.Time             `json:"timestamp"`
+	LastModified    *time.Time             `json:"last_modified"`
+	UUID            string                 `json:"uuid"`
+	TitleSort       string                 `json:"title_sort"`
+	AuthorLinkMap   map[string]string      `json:"author_link_map"`
+	Title           string                 `json:"title"`
+	Identifiers     map[string]string      `json:"identifiers"`
 }

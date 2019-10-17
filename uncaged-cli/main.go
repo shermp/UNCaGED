@@ -43,7 +43,7 @@ type UncagedCLI struct {
 	bookDir      string
 	metadataFile string
 	drivinfoFile string
-	metadata     []map[string]interface{}
+	metadata     []uc.CalibreBookMeta
 	deviceInfo   uc.DeviceInfo
 }
 
@@ -128,15 +128,18 @@ func (cli *UncagedCLI) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	}
 	bookDet := make([]uc.BookCountDetails, mdLen)
 	for i, md := range cli.metadata {
-		lastMod, _ := time.Parse(time.RFC3339, md["last_modified"].(string))
-		pathComp := strings.Split(md["lpath"].(string), ".")
+		lastMod := time.Now()
+		if md.LastModified != nil {
+			lastMod = *md.LastModified
+		}
+		pathComp := strings.Split(md.Lpath, ".")
 		ext := "."
 		if len(pathComp) > 1 {
 			ext += pathComp[len(pathComp)-1]
 		}
 		bd := uc.BookCountDetails{
-			UUID:         md["uuid"].(string),
-			Lpath:        md["lpath"].(string),
+			UUID:         md.UUID,
+			Lpath:        md.Lpath,
 			LastModified: lastMod,
 			Extension:    ext,
 		}
@@ -147,14 +150,14 @@ func (cli *UncagedCLI) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 
 // GetMetadataList sends complete metadata for the books listed in lpaths, or for
 // all books on device if lpaths is empty
-func (cli *UncagedCLI) GetMetadataList(books []uc.BookID) ([]map[string]interface{}, error) {
+func (cli *UncagedCLI) GetMetadataList(books []uc.BookID) ([]uc.CalibreBookMeta, error) {
 	if len(books) == 0 {
 		return cli.metadata, nil
 	}
-	mdList := []map[string]interface{}{}
+	mdList := make([]uc.CalibreBookMeta, len(books))
 	for _, bk := range books {
 		for _, md := range cli.metadata {
-			if bk.Lpath == md["lpath"].(string) {
+			if bk.Lpath == md.Lpath {
 				mdList = append(mdList, md)
 			}
 		}
@@ -177,13 +180,13 @@ func (cli *UncagedCLI) SetDeviceInfo(devInfo uc.DeviceInfo) error {
 
 // UpdateMetadata instructs the client to update their metadata according to the
 // new slice of metadata maps
-func (cli *UncagedCLI) UpdateMetadata(mdList []map[string]interface{}) error {
+func (cli *UncagedCLI) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
 	// This is ugly. Is there a better way to do it?
 	for _, newMD := range mdList {
-		newMDlpath := newMD["lpath"].(string)
-		newMDuuid := newMD["uuid"].(string)
+		newMDlpath := newMD.Lpath
+		newMDuuid := newMD.UUID
 		for j, md := range cli.metadata {
-			if newMDlpath == md["lpath"].(string) && newMDuuid == md["uuid"].(string) {
+			if newMDlpath == md.Lpath && newMDuuid == md.UUID {
 				cli.metadata[j] = newMD
 			}
 		}
@@ -212,10 +215,10 @@ func (cli *UncagedCLI) CheckLpath(lpath string) string {
 
 // SaveBook saves a book with the provided metadata to the disk.
 // Implementations return an io.WriteCloser for UNCaGED to write the ebook to
-func (cli *UncagedCLI) SaveBook(md map[string]interface{}, book io.Reader, len int, lastBook bool) (err error) {
+func (cli *UncagedCLI) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, lastBook bool) (err error) {
 	err = nil
 	bookExists := false
-	lpath := md["lpath"].(string)
+	lpath := md.Lpath
 	bookPath := filepath.Join(cli.bookDir, lpath)
 	dir, _ := filepath.Split(bookPath)
 	os.MkdirAll(dir, 0777)
@@ -227,7 +230,7 @@ func (cli *UncagedCLI) SaveBook(md map[string]interface{}, book io.Reader, len i
 		return err
 	}
 	for i, m := range cli.metadata {
-		currLpath := m["lpath"].(string)
+		currLpath := m.Lpath
 		if currLpath == lpath {
 			bookExists = true
 			cli.metadata[i] = md
@@ -269,9 +272,9 @@ func (cli *UncagedCLI) DeleteBook(book uc.BookID) error {
 		return err
 	}
 	for i, md := range cli.metadata {
-		if md["lpath"].(string) == book.Lpath {
+		if md.Lpath == book.Lpath {
 			cli.metadata[i] = cli.metadata[len(cli.metadata)-1]
-			cli.metadata[len(cli.metadata)-1] = nil
+			cli.metadata[len(cli.metadata)-1] = uc.CalibreBookMeta{}
 			cli.metadata = cli.metadata[:len(cli.metadata)-1]
 			break
 		}

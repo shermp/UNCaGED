@@ -138,15 +138,13 @@ func (ucdb *UncagedDB) length() int {
 }
 
 // addEntry adds a book to our internal "DB"
-func (ucdb *UncagedDB) addEntry(md json.RawMessage) error {
-	var err error
-	var bd BookCountDetails
-	if err = json.Unmarshal(md, &bd); err != nil {
-		return fmt.Errorf("addEntry: could not decode metadata: %w", err)
+func (ucdb *UncagedDB) addEntry(md CalibreBookMeta) {
+	bd := BookCountDetails{
+		PriKey: ucdb.newPriKey(),
+		UUID:   md.UUID,
+		Lpath:  md.Lpath,
 	}
-	bd.PriKey = ucdb.newPriKey()
 	ucdb.booklist = append(ucdb.booklist, bd)
-	return nil
 }
 
 // removeEntry removes a book from our internal "DB"
@@ -582,7 +580,7 @@ func (c *calConn) updateDeviceMetadata(data json.RawMessage) error {
 		return nil
 	}
 	// We read exactly 'count' metadata packets
-	md := make([]map[string]interface{}, bld.Count)
+	md := make([]CalibreBookMeta, bld.Count)
 	for i := 0; i < bld.Count; i++ {
 		var bkMD MetadataUpdate
 		opcode, newdata, err := c.readDecodeCalibrePayload()
@@ -622,16 +620,12 @@ func (c *calConn) sendBook(data json.RawMessage) (err error) {
 	if bookDet.ThisBook == (bookDet.TotalBooks - 1) {
 		lastBook = true
 	}
-	md := make(map[string]interface{})
-	if err = json.Unmarshal(bookDet.Metadata, &md); err != nil {
-		return fmt.Errorf("sendBook: error decoding metadata: %w", err)
-	}
 	newLpath := c.client.CheckLpath(bookDet.Lpath)
 	if bookDet.WantsSendOkToSendbook {
 		c.debugLogPrintf("Sending OK-to-send packet\n")
 		if bookDet.CanSupportLpathChanges && newLpath != bookDet.Lpath {
 			bookDet.Lpath = newLpath
-			md["lpath"] = newLpath
+			bookDet.Metadata.Lpath = newLpath
 			newLP := NewLpath{Lpath: bookDet.Lpath}
 			lpJSON, _ := json.Marshal(newLP)
 			payload := buildJSONpayload(lpJSON, ok)
@@ -648,7 +642,7 @@ func (c *calConn) sendBook(data json.RawMessage) (err error) {
 	// the process happens at 100KB/s
 	saveTimeout := time.Duration(int(float64(bookDet.Length)/float64(102400)+1) * 2)
 	c.tcpConn.SetDeadline(time.Now().Add(saveTimeout * time.Second))
-	if err = c.client.SaveBook(md, c.tcpReader, bookDet.Length, lastBook); err != nil {
+	if err = c.client.SaveBook(bookDet.Metadata, c.tcpReader, bookDet.Length, lastBook); err != nil {
 		return fmt.Errorf("sendBook: client error saving book: %w", err)
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
