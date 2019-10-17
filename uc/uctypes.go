@@ -22,6 +22,7 @@ package uc
 
 import (
 	"bufio"
+	"encoding/json"
 	"io"
 	"net"
 	"time"
@@ -197,17 +198,17 @@ type ClientOptions struct {
 // CalibreInitInfo is the initial information about itself that Calibre sends when establishing
 // a connection
 type CalibreInitInfo struct {
-	CanSupportLpathChanges bool     `mapstructure:"canSupportLpathChanges"`
-	CanSupportUpdateBooks  bool     `mapstructure:"canSupportUpdateBooks"`
-	CalibreVersion         []int    `mapstructure:"calibre_version"`
-	PubdateFormat          string   `mapstructure:"pubdateFormat"`
-	ServerProtocolVersion  int      `mapstructure:"serverProtocolVersion"`
-	PasswordChallenge      string   `mapstructure:"passwordChallenge"`
-	CurrentLibraryName     string   `mapstructure:"currentLibraryName"`
-	TimestampFormat        string   `mapstructure:"timestampFormat"`
-	ValidExtensions        []string `mapstructure:"validExtensions"`
-	LastModifiedFormat     string   `mapstructure:"lastModifiedFormat"`
-	CurrentLibraryUUID     string   `mapstructure:"currentLibraryUUID"`
+	CanSupportLpathChanges bool     `json:"canSupportLpathChanges"`
+	CanSupportUpdateBooks  bool     `json:"canSupportUpdateBooks"`
+	CalibreVersion         []int    `json:"calibre_version"`
+	PubdateFormat          string   `json:"pubdateFormat"`
+	ServerProtocolVersion  int      `json:"serverProtocolVersion"`
+	PasswordChallenge      string   `json:"passwordChallenge"`
+	CurrentLibraryName     string   `json:"currentLibraryName"`
+	TimestampFormat        string   `json:"timestampFormat"`
+	ValidExtensions        []string `json:"validExtensions"`
+	LastModifiedFormat     string   `json:"lastModifiedFormat"`
+	CurrentLibraryUUID     string   `json:"currentLibraryUUID"`
 }
 
 // CalibreInit is used by calibre to determine the software/devices capabilities
@@ -253,20 +254,20 @@ type DeviceInfo struct {
 
 // SendBook is used to hold information about each ebook as it arrives
 type SendBook struct {
-	TotalBooks             int                    `mapstructure:"totalBooks"`
-	Lpath                  string                 `mapstructure:"lpath"`
-	ThisBook               int                    `mapstructure:"thisBook"`
-	WillStreamBinary       bool                   `mapstructure:"willStreamBinary"`
-	CanSupportLpathChanges bool                   `mapstructure:"canSupportLpathChanges"`
-	Length                 int                    `mapstructure:"length"`
-	WillStreamBooks        bool                   `mapstructure:"willStreamBooks"`
-	Metadata               map[string]interface{} `mapstructure:"metadata"`
-	WantsSendOkToSendbook  bool                   `mapstructure:"wantsSendOkToSendbook"`
+	TotalBooks             int             `json:"totalBooks"`
+	Lpath                  string          `json:"lpath"`
+	ThisBook               int             `json:"thisBook"`
+	WillStreamBinary       bool            `json:"willStreamBinary"`
+	CanSupportLpathChanges bool            `json:"canSupportLpathChanges"`
+	Length                 int             `json:"length"`
+	WillStreamBooks        bool            `json:"willStreamBooks"`
+	Metadata               json.RawMessage `json:"metadata"`
+	WantsSendOkToSendbook  bool            `json:"wantsSendOkToSendbook"`
 }
 
 // DeleteBooks is a list of lpaths to delete
 type DeleteBooks struct {
-	Lpaths []string `mapstructure:"lpaths"`
+	Lpaths []string `json:"lpaths"`
 }
 
 // BookID identifies one book. Clients may use either field as their
@@ -283,17 +284,26 @@ type FreeSpace struct {
 
 // MetadataUpdate is used for sending updated metadata to the client
 type MetadataUpdate struct {
-	Count        int                    `mapstructure:"count"`
-	SupportsSync bool                   `mapstructure:"supportsSync"`
-	Data         map[string]interface{} `mapstructure:"data"`
-	Index        int                    `mapstructure:"index"`
+	Count        int                    `json:"count"`
+	SupportsSync bool                   `json:"supportsSync"`
+	Data         map[string]interface{} `json:"data"`
+	Index        int                    `json:"index"`
 }
 
-// BookCount sends the number of books on device to Calibre
-type BookCount struct {
+// BookCountSend sends the number of books on device to Calibre
+type BookCountSend struct {
 	Count      int  `json:"count"`
 	WillStream bool `json:"willStream"`
 	WillScan   bool `json:"willScan"`
+}
+
+// BookCountReceive contains the bookcount options calibre sends
+type BookCountReceive struct {
+	CanStream                bool `json:"canStream"`
+	CanScan                  bool `json:"canScan"`
+	WillUseCachedMetadata    bool `json:"willUseCachedMetadata"`
+	SupportsSync             bool `json:"supportsSync"`
+	CanSupportBookFormatSync bool `json:"canSupportBookFormatSync"`
 }
 
 // BookCountDetails sends basic details of each book already
@@ -306,14 +316,32 @@ type BookCountDetails struct {
 	LastModified time.Time `json:"last_modified" mapstructure:"last_modified"`
 }
 
-// GetBook prepares Calibre for the book we are about to send
-type GetBook struct {
+// GetBookSend prepares Calibre for the book we are about to send
+type GetBookSend struct {
 	WillStream       bool  `json:"willStream"`
 	WillStreamBinary bool  `json:"willStreamBinary"`
 	FileLength       int64 `json:"fileLength"`
 }
 
+// GetBookReceive contains the settings calibre sends when requesting a book
+type GetBookReceive struct {
+	Lpath           string `json:"lpath"`
+	Position        int64  `json:"position"`
+	ThisBook        int    `json:"thisBook"`
+	TotalBooks      int    `json:"totalBooks"`
+	CanStream       bool   `json:"canStream"`
+	CanStreamBinary bool   `json:"canStreamBinary"`
+}
+
 // NewLpath informs Calibre of a change in lpath
 type NewLpath struct {
 	Lpath string `json:"lpath"`
+}
+
+// BookListsDetails is sent from calibre to prepare for receiving metadata
+type BookListsDetails struct {
+	Count              int         `json:"count"`
+	Collections        interface{} `json:"collections"`
+	WillStreamMetadata bool        `json:"willStreamMetadata"`
+	SupportsSync       bool        `json:"supportsSync"`
 }
