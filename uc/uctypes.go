@@ -353,7 +353,7 @@ type CalibreBookMeta struct {
 	UserCategories map[string]interface{} `json:"user_categories"`
 	Comments       *string                `json:"comments"`
 	Tags           []string               `json:"tags"`
-	Pubdate        *time.Time             `json:"pubdate"`
+	Pubdate        *string                `json:"pubdate"`
 	SeriesIndex    *float64               `json:"series_index"`
 	// Thumbnail is in the form [width, height, base64]
 	Thumbnail       []interface{}     `json:"thumbnail"`
@@ -371,8 +371,8 @@ type CalibreBookMeta struct {
 	Rating          *float64          `json:"rating"`
 	Lpath           string            `json:"lpath"`
 	Publisher       *string           `json:"publisher"`
-	Timestamp       *time.Time        `json:"timestamp"`
-	LastModified    *time.Time        `json:"last_modified"`
+	Timestamp       *string           `json:"timestamp"`
+	LastModified    *string           `json:"last_modified"`
 	UUID            string            `json:"uuid"`
 	TitleSort       string            `json:"title_sort"`
 	AuthorLinkMap   map[string]string `json:"author_link_map"`
