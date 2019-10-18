@@ -39,7 +39,8 @@ const tcpDeadlineTimeout = 15
 const bookPacketContentLen = 4096
 
 // buildJSONpayload builds a payload in the format that Calibre expects
-func buildJSONpayload(jsonBytes []byte, op calOpCode) []byte {
+func buildJSONpayload(data interface{}, op calOpCode) []byte {
+	jsonBytes, _ := json.Marshal(data)
 	// Take the Calibre approach of building the payload
 	frame := fmt.Sprintf("[%d,%s]", op, jsonBytes)
 	payload := []byte(fmt.Sprintf("%d%s", len(frame), frame))
@@ -457,8 +458,7 @@ func (c *calConn) getInitInfo(data json.RawMessage) error {
 		CanSendOkToSendbook:     true,
 		CanAcceptLibraryInfo:    false,
 	}
-	initJSON, _ := json.Marshal(initInfo)
-	payload := buildJSONpayload(initJSON, ok)
+	payload := buildJSONpayload(initInfo, ok)
 	return c.writeTCP(payload)
 }
 
@@ -469,8 +469,7 @@ func (c *calConn) getDeviceInfo() error {
 	c.client.UpdateStatus(Connected, -1)
 	c.deviceInfo.DeviceVersion = c.clientOpts.DeviceModel
 	c.deviceInfo.Version = "391"
-	devInfoJSON, _ := json.Marshal(c.deviceInfo)
-	payload := buildJSONpayload(devInfoJSON, ok)
+	payload := buildJSONpayload(c.deviceInfo, ok)
 	return c.writeTCP(payload)
 }
 
@@ -490,8 +489,7 @@ func (c *calConn) setDeviceInfo(data json.RawMessage) error {
 func (c *calConn) getFreeSpace() error {
 	var space FreeSpace
 	space.FreeSpaceOnDevice = c.client.GetFreeSpace()
-	fsJSON, _ := json.Marshal(space)
-	payload := buildJSONpayload(fsJSON, ok)
+	payload := buildJSONpayload(space, ok)
 	return c.writeTCP(payload)
 }
 
@@ -507,16 +505,14 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 	// when setting "willUseCachedMetadata" to true, Calibre is expecting a list
 	// of books with abridged metadata (the contents of the bookCountDetails struct)
 	if bcOpts.WillUseCachedMetadata {
-		bcJSON, _ := json.Marshal(bc)
-		payload := buildJSONpayload(bcJSON, ok)
+		payload := buildJSONpayload(bc, ok)
 		// Send our count
 		if err = c.writeTCP(payload); err != nil {
 			return fmt.Errorf("getBookCount: error sending count: %w", err)
 		}
 
 		for _, b := range c.ucdb.booklist {
-			bJSON, _ := json.Marshal(b)
-			payload = buildJSONpayload(bJSON, ok)
+			payload = buildJSONpayload(b, ok)
 			if err = c.writeTCP(payload); err != nil {
 				return fmt.Errorf("getBookCount: error sending bookCountDetail: %w", err)
 			}
@@ -529,15 +525,13 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 			return fmt.Errorf("getBookCount: error getting metadata from device: %w", err)
 		}
 		bc.Count = len(md)
-		bcJSON, _ := json.Marshal(bc)
-		payload := buildJSONpayload(bcJSON, ok)
+		payload := buildJSONpayload(bc, ok)
 		// Send our count
 		if err = c.writeTCP(payload); err != nil {
 			return fmt.Errorf("getBookCount: error sending count: %w", err)
 		}
 		for _, m := range md {
-			mJSON, _ := json.Marshal(m)
-			payload := buildJSONpayload(mJSON, ok)
+			payload := buildJSONpayload(m, ok)
 			if err = c.writeTCP(payload); err != nil {
 				return fmt.Errorf("getBookCount: error sending book metadata: %w", err)
 			}
@@ -558,8 +552,7 @@ func (c *calConn) resendMetadataList(bookList []BookID) error {
 		return c.writeTCP([]byte(c.okStr))
 	}
 	for _, md := range mdList {
-		mJSON, _ := json.Marshal(md)
-		payload := buildJSONpayload(mJSON, ok)
+		payload := buildJSONpayload(md, ok)
 		if err = c.writeTCP(payload); err != nil {
 			return fmt.Errorf("resendMetadataList: error sending book metadata: %w", err)
 		}
@@ -627,8 +620,7 @@ func (c *calConn) sendBook(data json.RawMessage) (err error) {
 			bookDet.Lpath = newLpath
 			bookDet.Metadata.Lpath = newLpath
 			newLP := NewLpath{Lpath: bookDet.Lpath}
-			lpJSON, _ := json.Marshal(newLP)
-			payload := buildJSONpayload(lpJSON, ok)
+			payload := buildJSONpayload(newLP, ok)
 			if err = c.writeTCP(payload); err != nil {
 				return fmt.Errorf("sendBook: error writing OK-to-send packet: %w", err)
 			}
@@ -671,8 +663,7 @@ func (c *calConn) deleteBook(data json.RawMessage) error {
 		if err = c.client.DeleteBook(bID); err != nil {
 			return fmt.Errorf("deleteBook: client error deleting book: %w", err)
 		}
-		calConfirm, _ := json.Marshal(map[string]string{"uuid": bd.UUID})
-		payload := buildJSONpayload(calConfirm, ok)
+		payload := buildJSONpayload(map[string]string{"uuid": bd.UUID}, ok)
 		c.writeTCP(payload)
 		c.ucdb.removeEntry(Lpath, lp)
 	}
@@ -704,8 +695,7 @@ func (c *calConn) getBook(data json.RawMessage) error {
 		WillStreamBinary: true,
 		FileLength:       len,
 	}
-	gbJSON, _ := json.Marshal(gb)
-	payload := buildJSONpayload(gbJSON, ok)
+	payload := buildJSONpayload(gb, ok)
 	if err = c.writeTCP(payload); err != nil {
 		return fmt.Errorf("getBook: error writing GetBook payload: %w", err)
 	}
