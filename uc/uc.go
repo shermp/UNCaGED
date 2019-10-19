@@ -188,28 +188,40 @@ func (c *calConn) Start() (err error) {
 		c.debugLogPrintf("Calibre Opcode received: %v\n", opcode)
 		switch opcode {
 		case getInitializationInfo:
+			c.debugLogPrintf("Processing GET_INIT_INFO packet: %s\n", string(data))
 			err = c.getInitInfo(data)
 		case displayMessage:
+			c.debugLogPrintf("Processing DISPLAY_NESSAGE packet: %s\n", string(data))
 			err = c.handleMessage(data)
 		case getDeviceInformation:
+			c.debugLogPrintf("Processing GET_DEV_INFO packet: %s\n", string(data))
 			err = c.getDeviceInfo()
 		case setCalibreDeviceInfo:
+			c.debugLogPrintf("Processing SET_CAL_DEV_INFO packet: %s\n", string(data))
 			err = c.setDeviceInfo(data)
 		case freeSpace:
+			c.debugLogPrintf("Processing FREE_SPACE packet: %s\n", string(data))
 			err = c.getFreeSpace()
 		case getBookCount:
+			c.debugLogPrintf("Processing GET_BOOK_COUNT packet: %s\n", string(data))
 			err = c.getBookCount(data)
 		case sendBooklists:
+			c.debugLogPrintf("Processing SEND_BOOKLISTS packet: %s\n", string(data))
 			err = c.updateDeviceMetadata(data)
 		case setLibraryInfo:
+			c.debugLogPrintf("Processing SET_LIBRARY_INFO packet: %s\n", string(data))
 			err = c.writeTCP([]byte(c.okStr))
 		case sendBook:
+			c.debugLogPrintf("Processing SEND_BOOK packet: %s\n", string(data))
 			err = c.sendBook(data)
 		case deleteBook:
+			c.debugLogPrintf("Processing DELETE_BOOK packet: %s\n", string(data))
 			err = c.deleteBook(data)
 		case getBookFileSegment:
+			c.debugLogPrintf("Processing GET_BOOK_FILE_SEGMENT packet: %s\n", string(data))
 			err = c.getBook(data)
 		case noop:
+			c.debugLogPrintf("Processing NOOP packet: %s\n", string(data))
 			err = c.handleNoop(data)
 		}
 		if err != nil {
@@ -223,7 +235,7 @@ func (c *calConn) Start() (err error) {
 
 func (c *calConn) debugLogPrintf(format string, a ...interface{}) {
 	if c.debug {
-		c.client.LogPrintf(Debug, format, a...)
+		c.client.LogPrintf(Debug, "[DEBUG] "+format, a...)
 	}
 }
 
@@ -291,6 +303,7 @@ func (c *calConn) writeTCP(payload []byte) error {
 		return fmt.Errorf("writeTCP: write to tcp connection failed: %w", err)
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+	c.debugLogPrintf("Wrote TCP packet: %s\n", string(payload))
 	return nil
 }
 
@@ -330,6 +343,7 @@ func (c *calConn) readTCP() ([]byte, error) {
 		return nil, fmt.Errorf("readTCP: did not receive full payload: %w", err)
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+	c.debugLogPrintf("Read TCP packet: %s\n", string(payload))
 	return payload, nil
 }
 
