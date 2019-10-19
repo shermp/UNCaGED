@@ -130,7 +130,7 @@ func (cli *UncagedCLI) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	for i, md := range cli.metadata {
 		lastMod := time.Now()
 		if md.LastModified != nil {
-			lastMod = *md.LastModified
+			lastMod, _ = time.Parse(time.RFC3339, *md.LastModified)
 		}
 		pathComp := strings.Split(md.Lpath, ".")
 		ext := "."
