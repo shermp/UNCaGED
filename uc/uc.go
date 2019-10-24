@@ -562,8 +562,11 @@ func (c *calConn) resendMetadataList(bookList []BookID) error {
 	if err != nil {
 		return fmt.Errorf("resendMetadataList: error getting metadata from device: %w", err)
 	}
-	if len(mdList) == 0 {
+	count := len(mdList)
+	if count == 0 {
 		return c.writeTCP([]byte(c.okStr))
+	} else if count != len(bookList) {
+		return fmt.Errorf("resendMetadataList: count mismatch. Expected %d, got %d", len(bookList), count)
 	}
 	for _, md := range mdList {
 		payload := buildJSONpayload(md, ok)

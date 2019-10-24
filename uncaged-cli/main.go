@@ -130,7 +130,7 @@ func (cli *UncagedCLI) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	for i, md := range cli.metadata {
 		lastMod := time.Now()
 		if md.LastModified != nil {
-			lastMod, _ = time.Parse(time.RFC3339, *md.LastModified)
+			lastMod = *md.LastModified
 		}
 		pathComp := strings.Split(md.Lpath, ".")
 		ext := "."
@@ -155,10 +155,10 @@ func (cli *UncagedCLI) GetMetadataList(books []uc.BookID) ([]uc.CalibreBookMeta,
 		return cli.metadata, nil
 	}
 	mdList := make([]uc.CalibreBookMeta, len(books))
-	for _, bk := range books {
+	for i, bk := range books {
 		for _, md := range cli.metadata {
 			if bk.Lpath == md.Lpath {
-				mdList = append(mdList, md)
+				mdList[i] = md
 			}
 		}
 	}
