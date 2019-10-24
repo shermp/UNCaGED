@@ -317,6 +317,9 @@ func (c *calConn) readTCP() ([]byte, error) {
 		return nil, fmt.Errorf("readTCP: connection timed out: %w", err)
 	}
 	if err != nil {
+		if err == io.EOF {
+			return nil, err
+		}
 		return nil, fmt.Errorf("readTCP: ReadBytes failed: %w", err)
 	}
 	buffLen := len(msgSz)
@@ -340,6 +343,9 @@ func (c *calConn) readTCP() ([]byte, error) {
 	if errors.As(err, &terr) && terr.Timeout() {
 		return nil, fmt.Errorf("readTCP: connection timed out: %w", err)
 	} else if err != nil {
+		if err == io.EOF {
+			return nil, err
+		}
 		return nil, fmt.Errorf("readTCP: did not receive full payload: %w", err)
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
