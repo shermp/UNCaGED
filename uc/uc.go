@@ -300,6 +300,9 @@ func (c *calConn) writeTCP(payload []byte) error {
 	if errors.As(err, &terr) && terr.Timeout() {
 		return fmt.Errorf("writeTCP: connection timed out: %w", err)
 	} else if err != nil {
+		if err == io.EOF {
+			return err
+		}
 		return fmt.Errorf("writeTCP: write to tcp connection failed: %w", err)
 	}
 	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
