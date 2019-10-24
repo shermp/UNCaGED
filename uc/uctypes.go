@@ -371,8 +371,8 @@ type CalibreBookMeta struct {
 	Rating          *float64          `json:"rating"`
 	Lpath           string            `json:"lpath"`
 	Publisher       *string           `json:"publisher"`
-	Timestamp       *string           `json:"timestamp"`
-	LastModified    *string           `json:"last_modified"`
+	Timestamp       *time.Time        `json:"timestamp"`
+	LastModified    *time.Time        `json:"last_modified"`
 	UUID            string            `json:"uuid"`
 	TitleSort       string            `json:"title_sort"`
 	AuthorLinkMap   map[string]string `json:"author_link_map"`
