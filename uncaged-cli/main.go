@@ -21,6 +21,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -220,6 +221,7 @@ func (cli *UncagedCLI) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	bookExists := false
 	lpath := md.Lpath
 	bookPath := filepath.Join(cli.bookDir, lpath)
+	imgPath := bookPath + ".jpg"
 	dir, _ := filepath.Split(bookPath)
 	os.MkdirAll(dir, 0777)
 	bookFile, err := os.OpenFile(bookPath, os.O_WRONLY|os.O_CREATE, 0644)
@@ -228,6 +230,16 @@ func (cli *UncagedCLI) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 		return errors.New("Number of bytes written different from expected")
 	} else if err != nil {
 		return err
+	}
+	if md.Thumbnail.Exists() {
+		w, h := md.Thumbnail.Dimensions()
+		fmt.Printf("Thumbnail Dims... W: %d, H: %d\n", w, h)
+		img, _ := base64.StdEncoding.DecodeString(md.Thumbnail.ImgBase64())
+		if err = ioutil.WriteFile(imgPath, img, 0644); err != nil {
+			return fmt.Errorf("SaveBook: failed to write cover: %w", err)
+		}
+		md.Cover = &imgPath
+		md.Thumbnail = nil
 	}
 	for i, m := range cli.metadata {
 		currLpath := m.Lpath

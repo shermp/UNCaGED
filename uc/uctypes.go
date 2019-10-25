@@ -356,7 +356,7 @@ type CalibreBookMeta struct {
 	Pubdate        *string                `json:"pubdate"`
 	SeriesIndex    *float64               `json:"series_index"`
 	// Thumbnail is in the form [width, height, base64]
-	Thumbnail       []interface{}     `json:"thumbnail"`
+	Thumbnail       CalibreThumb      `json:"thumbnail"`
 	PublicationType *string           `json:"publication_type"`
 	Mime            *string           `json:"mime"`
 	AuthorSort      string            `json:"author_sort"`
@@ -378,4 +378,42 @@ type CalibreBookMeta struct {
 	AuthorLinkMap   map[string]string `json:"author_link_map"`
 	Title           string            `json:"title"`
 	Identifiers     map[string]string `json:"identifiers"`
+}
+
+// CalibreThumb stores a thumbnail from Calibre, with some convenience methods
+// to access dimensions, and the Base64 string
+type CalibreThumb []interface{}
+
+// Exists checks that the thumbnail variable is a valid thumbnail
+func (t CalibreThumb) Exists() bool {
+	if t != nil && len(t) == 3 {
+		return true
+	}
+	return false
+}
+
+// Dimensions return the width and height of the thumbnail.
+// Dimensions are only valid if Exists() is true
+func (t CalibreThumb) Dimensions() (width, height int) {
+	if t != nil && len(t) == 3 {
+		return int(t[0].(float64)), int(t[1].(float64))
+	}
+	return -1, -1
+}
+
+// ImgBase64 returns the base64 encoded string of the image binary
+// the base64 string is only valid if Exists() is true
+func (t CalibreThumb) ImgBase64() string {
+	if t != nil && len(t) == 3 {
+		return t[2].(string)
+	}
+	return ""
+}
+
+// Set a CalibreThumb dimensions and base64 string
+func (t CalibreThumb) Set(width, height int, imgBase64 string) {
+	if t == nil || len(t) != 3 {
+		t = make([]interface{}, 3)
+	}
+	t[0], t[1], t[2] = float64(width), float64(height), imgBase64
 }
