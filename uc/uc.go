@@ -543,18 +543,19 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 		// Otherwise, Calibre expects a full set of metadata for each book on the
 		// device. We get that from the client.
 	} else {
-		md, err := c.client.GetMetadataList([]BookID{})
-		if err != nil {
-			return fmt.Errorf("getBookCount: error getting metadata from device: %w", err)
-		}
-		bc.Count = len(md)
+		mdIter := c.client.GetMetadataIter([]BookID{})
+		bc.Count = mdIter.Count()
 		payload := buildJSONpayload(bc, ok)
 		// Send our count
 		if err = c.writeTCP(payload); err != nil {
 			return fmt.Errorf("getBookCount: error sending count: %w", err)
 		}
-		for _, m := range md {
-			payload := buildJSONpayload(m, ok)
+		for mdIter.Next() {
+			md, err := mdIter.Get()
+			if err != nil {
+				return fmt.Errorf("getBookCount: error retrieving book metadata: %w", err)
+			}
+			payload := buildJSONpayload(md, ok)
 			if err = c.writeTCP(payload); err != nil {
 				return fmt.Errorf("getBookCount: error sending book metadata: %w", err)
 			}
@@ -567,17 +568,15 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 // Calibre requests a complete metadata listing (eg, when using a
 // different Calibre library)
 func (c *calConn) resendMetadataList(bookList []BookID) error {
-	mdList, err := c.client.GetMetadataList(bookList)
-	if err != nil {
-		return fmt.Errorf("resendMetadataList: error getting metadata from device: %w", err)
-	}
-	count := len(mdList)
-	if count == 0 {
+	mdIter := c.client.GetMetadataIter(bookList)
+	if mdIter.Count() == 0 {
 		return c.writeTCP([]byte(c.okStr))
-	} else if count != len(bookList) {
-		return fmt.Errorf("resendMetadataList: count mismatch. Expected %d, got %d", len(bookList), count)
 	}
-	for _, md := range mdList {
+	for mdIter.Next() {
+		md, err := mdIter.Get()
+		if err != nil {
+			return fmt.Errorf("resendMetadataList: error retrieving book metadata: %w", err)
+		}
 		payload := buildJSONpayload(md, ok)
 		if err = c.writeTCP(payload); err != nil {
 			return fmt.Errorf("resendMetadataList: error sending book metadata: %w", err)

@@ -21,16 +21,20 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	_ "image/jpeg"
 
 	"github.com/shermp/UNCaGED/uc"
 )
@@ -44,14 +48,51 @@ type UncagedCLI struct {
 	bookDir      string
 	metadataFile string
 	drivinfoFile string
-	metadata     []uc.CalibreBookMeta
+	metadata     cliMeta
 	deviceInfo   uc.DeviceInfo
+}
+
+type cliMeta struct {
+	indices   []int
+	currIndex int
+	md        []uc.CalibreBookMeta
+}
+
+func (cm *cliMeta) reset() {
+	cm.indices = make([]int, 0)
+	cm.currIndex = 0
+}
+func (cm *cliMeta) addIndex(index int) {
+	cm.indices = append(cm.indices, index)
+}
+func (cm *cliMeta) Count() int {
+	return len(cm.indices)
+}
+func (cm *cliMeta) Next() bool {
+	if len(cm.indices) == 0 {
+		return false
+	}
+	cm.currIndex = cm.indices[0]
+	cm.indices = cm.indices[1:]
+	return true
+}
+func (cm *cliMeta) Get() (uc.CalibreBookMeta, error) {
+	md := cm.md[cm.currIndex]
+	if md.Cover != nil {
+		thumbPath := *md.Cover
+		img, err := ioutil.ReadFile(thumbPath)
+		if err == nil {
+			cfg, _, _ := image.DecodeConfig(bytes.NewReader(img))
+			md.Thumbnail.Set(cfg.Width, cfg.Height, base64.StdEncoding.EncodeToString(img))
+		}
+	}
+	return md, nil
 }
 
 func (cli *UncagedCLI) loadMDfile() error {
 	mdJSON, err := ioutil.ReadFile(cli.metadataFile)
 	if err != nil {
-		cli.metadata = nil
+		cli.metadata.md = nil
 		if os.IsNotExist(err) {
 			emptyJSON := []byte("[]\n")
 			ioutil.WriteFile(cli.metadataFile, emptyJSON, 0644)
@@ -59,14 +100,14 @@ func (cli *UncagedCLI) loadMDfile() error {
 		return err
 	}
 	if len(mdJSON) == 0 {
-		cli.metadata = nil
+		cli.metadata.md = nil
 		return nil
 	}
-	return json.Unmarshal(mdJSON, &cli.metadata)
+	return json.Unmarshal(mdJSON, &cli.metadata.md)
 }
 
 func (cli *UncagedCLI) saveMDfile() error {
-	mdJSON, err := json.MarshalIndent(cli.metadata, "", "    ")
+	mdJSON, err := json.MarshalIndent(cli.metadata.md, "", "    ")
 	if err != nil {
 		return err
 	}
@@ -123,12 +164,12 @@ func (cli *UncagedCLI) GetClientOptions() (uc.ClientOptions, error) {
 // GetDeviceBookList returns a slice of all the books currently on the device
 // A nil slice is interpreted has having no books on the device
 func (cli *UncagedCLI) GetDeviceBookList() ([]uc.BookCountDetails, error) {
-	mdLen := len(cli.metadata)
+	mdLen := len(cli.metadata.md)
 	if mdLen == 0 {
 		return nil, nil
 	}
 	bookDet := make([]uc.BookCountDetails, mdLen)
-	for i, md := range cli.metadata {
+	for i, md := range cli.metadata.md {
 		lastMod := time.Now()
 		if md.LastModified != nil {
 			lastMod = *md.LastModified
@@ -149,21 +190,24 @@ func (cli *UncagedCLI) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	return bookDet, nil
 }
 
-// GetMetadataList sends complete metadata for the books listed in lpaths, or for
-// all books on device if lpaths is empty
-func (cli *UncagedCLI) GetMetadataList(books []uc.BookID) ([]uc.CalibreBookMeta, error) {
+// GetMetadataIter creates an iterator that sends complete metadata for the books
+// listed in lpaths, or for all books on device if lpaths is empty
+func (cli *UncagedCLI) GetMetadataIter(books []uc.BookID) uc.MetadataIter {
+	cli.metadata.reset()
 	if len(books) == 0 {
-		return cli.metadata, nil
+		for i := range cli.metadata.md {
+			cli.metadata.addIndex(i)
+		}
+		return &cli.metadata
 	}
-	mdList := make([]uc.CalibreBookMeta, len(books))
-	for i, bk := range books {
-		for _, md := range cli.metadata {
+	for _, bk := range books {
+		for i, md := range cli.metadata.md {
 			if bk.Lpath == md.Lpath {
-				mdList[i] = md
+				cli.metadata.addIndex(i)
 			}
 		}
 	}
-	return mdList, nil
+	return &cli.metadata
 }
 
 // GetDeviceInfo asks the client for information about the drive info to use
@@ -186,9 +230,9 @@ func (cli *UncagedCLI) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
 	for _, newMD := range mdList {
 		newMDlpath := newMD.Lpath
 		newMDuuid := newMD.UUID
-		for j, md := range cli.metadata {
+		for j, md := range cli.metadata.md {
 			if newMDlpath == md.Lpath && newMDuuid == md.UUID {
-				cli.metadata[j] = newMD
+				cli.metadata.md[j] = newMD
 			}
 		}
 	}
@@ -241,15 +285,15 @@ func (cli *UncagedCLI) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 		md.Cover = &imgPath
 		md.Thumbnail = nil
 	}
-	for i, m := range cli.metadata {
+	for i, m := range cli.metadata.md {
 		currLpath := m.Lpath
 		if currLpath == lpath {
 			bookExists = true
-			cli.metadata[i] = md
+			cli.metadata.md[i] = md
 		}
 	}
 	if !bookExists {
-		cli.metadata = append(cli.metadata, md)
+		cli.metadata.md = append(cli.metadata.md, md)
 	}
 	if lastBook {
 		cli.saveMDfile()
@@ -283,11 +327,11 @@ func (cli *UncagedCLI) DeleteBook(book uc.BookID) error {
 	if err != nil {
 		return err
 	}
-	for i, md := range cli.metadata {
+	for i, md := range cli.metadata.md {
 		if md.Lpath == book.Lpath {
-			cli.metadata[i] = cli.metadata[len(cli.metadata)-1]
-			cli.metadata[len(cli.metadata)-1] = uc.CalibreBookMeta{}
-			cli.metadata = cli.metadata[:len(cli.metadata)-1]
+			cli.metadata.md[i] = cli.metadata.md[len(cli.metadata.md)-1]
+			cli.metadata.md[len(cli.metadata.md)-1] = uc.CalibreBookMeta{}
+			cli.metadata.md = cli.metadata.md[:len(cli.metadata.md)-1]
 			break
 		}
 	}

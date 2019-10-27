@@ -106,6 +106,18 @@ type UncagedDB struct {
 	booklist []BookCountDetails
 }
 
+// MetadataIter allows the client to lazy load book metadata
+type MetadataIter interface {
+	// Next advances the iterator. Returns false when done, true otherwise
+	Next() bool
+	// Count returns the expected number of iterations. Required because Calibre
+	// needs to know how many metadata items will be sent
+	Count() int
+	// Get the metadata at the current position. Returns an error if the iterator
+	// can not continue
+	Get() (CalibreBookMeta, error)
+}
+
 // Client is the interface that specific implementations of UNCaGED must implement.
 // Errors will be returned as-is.
 type Client interface {
@@ -120,7 +132,10 @@ type Client interface {
 	GetDeviceBookList() (booklist []BookCountDetails, err error)
 	// GetMetadataList sends complete metadata for the books listed in lpaths, or for
 	// all books on device if lpaths is empty
-	GetMetadataList(books []BookID) (mdList []CalibreBookMeta, err error)
+	//GetMetadataList(books []BookID) (mdList []CalibreBookMeta, err error)
+	// GetMetadataIter should return an iterator that provides metadata for all books in 'books',
+	// or all books on device if 'books' is nil
+	GetMetadataIter(books []BookID) MetadataIter
 	// GetDeviceInfo asks the client for information about the drive info to use
 	GetDeviceInfo() (DeviceInfo, error)
 	// SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
