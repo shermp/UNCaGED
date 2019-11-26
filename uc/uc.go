@@ -74,11 +74,11 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	// five ports. We try all five ports concurrently
 	c.client.UpdateStatus(SearchingCalibre, -1)
 	bcastPorts := []int{54982, 48123, 39001, 44044, 59678}
-	wg := &sync.WaitGroup{}
-	mu := &sync.Mutex{}
+	wg := sync.WaitGroup{}
+	mu := sync.Mutex{}
 	for _, p := range bcastPorts {
 		wg.Add(1)
-		go c.findCalibre(p, mu, wg)
+		go c.findCalibre(p, &mu, &wg)
 	}
 	wg.Wait()
 	if len(c.calibreInstances) == 0 {
