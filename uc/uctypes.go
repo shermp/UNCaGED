@@ -362,37 +362,49 @@ type BookListsDetails struct {
 
 // CalibreBookMeta contains top level metadata fields for a book from Calibre
 type CalibreBookMeta struct {
-	Authors        []string               `json:"authors"`
-	Languages      []string               `json:"languages"`
-	UserMetadata   map[string]interface{} `json:"user_metadata"`
-	UserCategories map[string]interface{} `json:"user_categories"`
-	Comments       *string                `json:"comments"`
-	Tags           []string               `json:"tags"`
-	Pubdate        *string                `json:"pubdate"`
-	SeriesIndex    *float64               `json:"series_index"`
-	// Thumbnail is in the form [width, height, base64]
-	Thumbnail       CalibreThumb      `json:"thumbnail"`
-	PublicationType *string           `json:"publication_type"`
-	Mime            *string           `json:"mime"`
-	AuthorSort      string            `json:"author_sort"`
-	Series          *string           `json:"series"`
-	Rights          *string           `json:"rights"`
-	DbID            interface{}       `json:"db_id"`
-	Cover           *string           `json:"cover"`
-	ApplicationID   int               `json:"application_id"`
-	BookProducer    *string           `json:"book_producer"`
-	Size            int               `json:"size"`
-	AuthorSortMap   map[string]string `json:"author_sort_map"`
-	Rating          *float64          `json:"rating"`
-	Lpath           string            `json:"lpath"`
-	Publisher       *string           `json:"publisher"`
-	Timestamp       *time.Time        `json:"timestamp"`
-	LastModified    *time.Time        `json:"last_modified"`
-	UUID            string            `json:"uuid"`
-	TitleSort       string            `json:"title_sort"`
-	AuthorLinkMap   map[string]string `json:"author_link_map"`
-	Title           string            `json:"title"`
-	Identifiers     map[string]string `json:"identifiers"`
+	Authors         []string               `json:"authors"`
+	Languages       []string               `json:"languages"`
+	UserMetadata    map[string]interface{} `json:"user_metadata"`
+	UserCategories  map[string]interface{} `json:"user_categories"`
+	Comments        *string                `json:"comments"`
+	Tags            []string               `json:"tags"`
+	Pubdate         *CalibreTime           `json:"pubdate"`
+	SeriesIndex     *float64               `json:"series_index"`
+	Thumbnail       CalibreThumb           `json:"thumbnail"`
+	PublicationType *string                `json:"publication_type"`
+	Mime            *string                `json:"mime"`
+	AuthorSort      string                 `json:"author_sort"`
+	Series          *string                `json:"series"`
+	Rights          *string                `json:"rights"`
+	DbID            interface{}            `json:"db_id"`
+	Cover           *string                `json:"cover"`
+	ApplicationID   int                    `json:"application_id"`
+	BookProducer    *string                `json:"book_producer"`
+	Size            int                    `json:"size"`
+	AuthorSortMap   map[string]string      `json:"author_sort_map"`
+	Rating          *float64               `json:"rating"`
+	Lpath           string                 `json:"lpath"`
+	Publisher       *string                `json:"publisher"`
+	Timestamp       *CalibreTime           `json:"timestamp"`
+	LastModified    *CalibreTime           `json:"last_modified"`
+	UUID            string                 `json:"uuid"`
+	TitleSort       string                 `json:"title_sort"`
+	AuthorLinkMap   map[string]string      `json:"author_link_map"`
+	Title           string                 `json:"title"`
+	Identifiers     map[string]string      `json:"identifiers"`
+}
+
+// CalibreTime holds timestamps from calibre
+type CalibreTime string
+
+// GetTime returns a time if there is a valid time, nil otherwise
+func (ct *CalibreTime) GetTime() *time.Time {
+	if ct != nil {
+		if parsedTime, err := time.Parse(time.RFC3339, string(*ct)); err == nil {
+			return &parsedTime
+		}
+	}
+	return nil
 }
 
 // CalibreThumb stores a thumbnail from Calibre, with some convenience methods
