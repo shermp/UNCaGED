@@ -2,54 +2,54 @@ package uc
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"path/filepath"
 	"testing"
 )
 
+func loadBytes(t *testing.T, filename string) []byte {
+	filebytes, err := ioutil.ReadFile(filepath.Join("testdata", filename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return filebytes
+}
+
+func getCTPtr(s string) *CalibreTime {
+	ct := CalibreTime(s)
+	return &ct
+}
+
 func TestMetaUnmarshal(t *testing.T) {
 	meta := CalibreBookMeta{}
-	testMetaStr := []byte(`
-	  {
-		"rating": null, 
-		"author_sort": "Author, Test", 
-		"size": 586110, 
-		"series_index": null, 
-		"cover": null, 
-		"publication_type": null, 
-		"db_id": null, 
-		"series": null, 
-		"rights": null, 
-		"title": "Test Title", 
-		"identifiers": {}, 
-		"last_modified": "None", 
-		"thumbnail": null, 
-		"timestamp": "2020-02-10T22:12:41+13:00", 
-		"uuid": null, 
-		"mime": "application/epub+zip", 
-		"pubdate": null, 
-		"publisher": null, 
-		"application_id": null, 
-		"user_metadata": {}, 
-		"author_sort_map": {
-			"Test Author": "",
-			"Joe Bloggs": ""
-		}, 
-		"authors": [
-		  "Test Author",
-		  "Joe Bloggs"
-		], 
-		"comments": null, 
-		"languages": [], 
-		"book_producer": null, 
-		"lpath": "books/Test Author - Test Title.epub", 
-		"user_categories": {}, 
-		"author_link_map": {}, 
-		"title_sort": null, 
-		"tags": []
-	  }`)
+	testMetaStr := loadBytes(t, "timestamps.json")
 	if err := json.Unmarshal(testMetaStr, &meta); err != nil {
 		t.Errorf("Error umarshalling JSON: %v", err)
 	}
 	if meta.LastModified.GetTime() != nil || meta.Pubdate.GetTime() != nil || meta.Timestamp.GetTime() == nil {
 		t.Errorf("Expected: <nil>, <nil>, time.Time\nGot: %v, %v, %v", meta.LastModified, meta.Pubdate, meta.Timestamp)
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	tests := []struct {
+		name   string
+		ts     string
+		result *CalibreTime
+	}{
+		{name: "RFC3339 UTC TS", ts: "2020-02-10T22:40:38+00:00", result: getCTPtr("2020-02-10T22:40:38+00:00")},
+		{name: "RFC3339 Zulu TS", ts: "2020-02-10T22:40:38Z", result: getCTPtr("2020-02-10T22:40:38Z")},
+		{name: "RFC3339 NZDT TS", ts: "2020-02-11T11:40:38+13:00", result: getCTPtr("2020-02-11T11:40:38+13:00")},
+		{name: "Non-RFC3339 TS", ts: "11/02/2020 11:40AM", result: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ParseTime(tt.ts)
+			if (got != nil && tt.result != nil) && (*got != *tt.result) {
+				t.Errorf("Got: %v, expected %v", got, tt.result)
+			} else if got != nil && tt.result == nil {
+				t.Errorf("Got: %v, expected %v", got, tt.result)
+			}
+		})
 	}
 }

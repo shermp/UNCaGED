@@ -407,6 +407,20 @@ func (ct *CalibreTime) GetTime() *time.Time {
 	return nil
 }
 
+// ConvertTime returns a RFC3339 formatted CalibreTime
+func ConvertTime(t time.Time) CalibreTime {
+	return CalibreTime(t.Format(time.RFC3339))
+}
+
+// ParseTime returns an RFC3339 formatted timestamp as a *CalibreTimem or nil otherwise
+func ParseTime(timestamp string) *CalibreTime {
+	if _, err := time.Parse(time.RFC3339, timestamp); err == nil {
+		ct := CalibreTime(timestamp)
+		return &ct
+	}
+	return nil
+}
+
 // CalibreThumb stores a thumbnail from Calibre, with some convenience methods
 // to access dimensions, and the Base64 string
 type CalibreThumb []interface{}
