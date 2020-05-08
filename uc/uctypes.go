@@ -31,8 +31,14 @@ import (
 type calOpCode int
 type calMsgCode int
 type ucdbSearchType int
+
+// LogLevel is the level of logging info that will be sent to the client
 type LogLevel int
+
+// Status is a set of pre-defined status codes to be sent to the client
 type Status int
+
+// CalError is the type of Calibre specific errors the client should check for
 type CalError string
 
 // Specific Calibre errors that should be handled
@@ -179,6 +185,7 @@ type Client interface {
 	SetExitChannel(exitChan chan<- bool)
 }
 
+// CalInstance describes a Calibre instance that UC found
 type CalInstance struct {
 	Addr        string
 	Description string
