@@ -347,6 +347,10 @@ func (cli *UncagedCLI) LogPrintf(logLevel uc.LogLevel, format string, a ...inter
 	fmt.Printf(format, a...)
 }
 
+// SetExitChannel provides the client with a channel to prematurely stop UNCaGED.
+func (cli *UncagedCLI) SetExitChannel(exitChan chan<- bool) {
+}
+
 func main() {
 	cwd, _ := os.Getwd()
 	cli := &UncagedCLI{

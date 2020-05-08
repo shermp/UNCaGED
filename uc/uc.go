@@ -169,60 +169,68 @@ func (ucdb *UncagedDB) initDB(bl []BookCountDetails) {
 // Start starts a TCP connection with Calibre, then listens
 // for messages and pass them to the appropriate handler
 func (c *calConn) Start() (err error) {
+	exitChan := make(chan bool)
+	calPl := make(chan calPayload)
+	c.client.SetExitChannel(exitChan)
 	c.client.UpdateStatus(Connecting, -1)
 	err = c.establishTCP()
 	if err != nil {
 		return fmt.Errorf("Start: establishing connection failed: %w", err)
 	}
+	defer c.tcpConn.Close()
 	// Connect to Calibre
 	// Keep reading untill the connection is closed
 	for {
-		opcode, data, err := c.readDecodeCalibrePayload()
-		if err != nil {
-			if err == io.EOF {
+		go c.readDecodeCalibrePayloadChan(calPl)
+		select {
+		case <-exitChan:
+			return nil
+		case pl := <-calPl:
+			if pl.err != nil {
+				if pl.err == io.EOF {
 				c.debugLogPrintf("TCP Connection Closed")
 				return nil
 			}
-			return fmt.Errorf("Start: packet reading failed: %w", err)
+				return fmt.Errorf("Start: packet reading failed: %w", pl.err)
 		}
-		c.debugLogPrintf("Calibre Opcode received: %v\n", opcode)
-		switch opcode {
+			c.debugLogPrintf("Calibre Opcode received: %v\n", pl.op)
+			switch pl.op {
 		case getInitializationInfo:
-			c.debugLogPrintf("Processing GET_INIT_INFO packet: %s\n", string(data))
-			err = c.getInitInfo(data)
+				c.debugLogPrintf("Processing GET_INIT_INFO packet: %s\n", string(pl.payload))
+				err = c.getInitInfo(pl.payload)
 		case displayMessage:
-			c.debugLogPrintf("Processing DISPLAY_NESSAGE packet: %s\n", string(data))
-			err = c.handleMessage(data)
+				c.debugLogPrintf("Processing DISPLAY_NESSAGE packet: %s\n", string(pl.payload))
+				err = c.handleMessage(pl.payload)
 		case getDeviceInformation:
-			c.debugLogPrintf("Processing GET_DEV_INFO packet: %s\n", string(data))
+				c.debugLogPrintf("Processing GET_DEV_INFO packet: %s\n", string(pl.payload))
 			err = c.getDeviceInfo()
 		case setCalibreDeviceInfo:
-			c.debugLogPrintf("Processing SET_CAL_DEV_INFO packet: %s\n", string(data))
-			err = c.setDeviceInfo(data)
+				c.debugLogPrintf("Processing SET_CAL_DEV_INFO packet: %s\n", string(pl.payload))
+				err = c.setDeviceInfo(pl.payload)
 		case freeSpace:
-			c.debugLogPrintf("Processing FREE_SPACE packet: %s\n", string(data))
+				c.debugLogPrintf("Processing FREE_SPACE packet: %s\n", string(pl.payload))
 			err = c.getFreeSpace()
 		case getBookCount:
-			c.debugLogPrintf("Processing GET_BOOK_COUNT packet: %s\n", string(data))
-			err = c.getBookCount(data)
+				c.debugLogPrintf("Processing GET_BOOK_COUNT packet: %s\n", string(pl.payload))
+				err = c.getBookCount(pl.payload)
 		case sendBooklists:
-			c.debugLogPrintf("Processing SEND_BOOKLISTS packet: %s\n", string(data))
-			err = c.updateDeviceMetadata(data)
+				c.debugLogPrintf("Processing SEND_BOOKLISTS packet: %s\n", string(pl.payload))
+				err = c.updateDeviceMetadata(pl.payload)
 		case setLibraryInfo:
-			c.debugLogPrintf("Processing SET_LIBRARY_INFO packet: %s\n", string(data))
+				c.debugLogPrintf("Processing SET_LIBRARY_INFO packet: %s\n", string(pl.payload))
 			err = c.writeTCP([]byte(c.okStr))
 		case sendBook:
-			c.debugLogPrintf("Processing SEND_BOOK packet: %s\n", string(data))
-			err = c.sendBook(data)
+				c.debugLogPrintf("Processing SEND_BOOK packet: %s\n", string(pl.payload))
+				err = c.sendBook(pl.payload)
 		case deleteBook:
-			c.debugLogPrintf("Processing DELETE_BOOK packet: %s\n", string(data))
-			err = c.deleteBook(data)
+				c.debugLogPrintf("Processing DELETE_BOOK packet: %s\n", string(pl.payload))
+				err = c.deleteBook(pl.payload)
 		case getBookFileSegment:
-			c.debugLogPrintf("Processing GET_BOOK_FILE_SEGMENT packet: %s\n", string(data))
-			err = c.getBook(data)
+				c.debugLogPrintf("Processing GET_BOOK_FILE_SEGMENT packet: %s\n", string(pl.payload))
+				err = c.getBook(pl.payload)
 		case noop:
-			c.debugLogPrintf("Processing NOOP packet: %s\n", string(data))
-			err = c.handleNoop(data)
+				c.debugLogPrintf("Processing NOOP packet: %s\n", string(pl.payload))
+				err = c.handleNoop(pl.payload)
 		}
 		if err != nil {
 			if err == io.EOF {
@@ -231,6 +239,7 @@ func (c *calConn) Start() (err error) {
 			return fmt.Errorf("Start: exiting with error: %w", err)
 		}
 	}
+}
 }
 
 func (c *calConn) debugLogPrintf(format string, a ...interface{}) {
@@ -266,6 +275,11 @@ func (c *calConn) readDecodeCalibrePayload() (calOpCode, json.RawMessage, error)
 		return noop, nil, fmt.Errorf("readDecodeCalibrePayload: packet decoding failed: %w", err)
 	}
 	return opcode, data, nil
+}
+func (c *calConn) readDecodeCalibrePayloadChan(calPl chan<- calPayload) {
+	pl := calPayload{}
+	pl.op, pl.payload, pl.err = c.readDecodeCalibrePayload()
+	calPl <- pl
 }
 
 // hashCalPassword generates a string representation in hex of the password

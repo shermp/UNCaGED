@@ -22,6 +22,7 @@ package uc
 
 import (
 	"bufio"
+	"encoding/json"
 	"io"
 	"net"
 	"time"
@@ -172,6 +173,10 @@ type Client interface {
 	UpdateStatus(status Status, progress int)
 	// Instructs the client to log informational and debug info, that aren't errors
 	LogPrintf(logLevel LogLevel, format string, a ...interface{})
+	// SetExitChannel provides the client with a channel to prematurely stop UNCaGED.
+	// when true is sent on the channel, UNCaGED will stop after finishing the current job.
+	// UNCaGED will exit Start() with a nil error if no other errors were detected
+	SetExitChannel(exitChan chan<- bool)
 }
 
 type CalInstance struct {
@@ -194,6 +199,12 @@ type calConn struct {
 	client           Client
 	transferCount    int
 	debug            bool
+}
+
+type calPayload struct {
+	op      calOpCode
+	payload json.RawMessage
+	err     error
 }
 
 // ClientOptions stores all the client specific options that a client needs
