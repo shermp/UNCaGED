@@ -188,58 +188,58 @@ func (c *calConn) Start() (err error) {
 		case pl := <-calPl:
 			if pl.err != nil {
 				if pl.err == io.EOF {
-				c.debugLogPrintf("TCP Connection Closed")
-				return nil
-			}
+					c.debugLogPrintf("TCP Connection Closed")
+					return nil
+				}
 				return fmt.Errorf("Start: packet reading failed: %w", pl.err)
-		}
+			}
 			c.debugLogPrintf("Calibre Opcode received: %v\n", pl.op)
 			switch pl.op {
-		case getInitializationInfo:
+			case getInitializationInfo:
 				c.debugLogPrintf("Processing GET_INIT_INFO packet: %s\n", string(pl.payload))
 				err = c.getInitInfo(pl.payload)
-		case displayMessage:
+			case displayMessage:
 				c.debugLogPrintf("Processing DISPLAY_NESSAGE packet: %s\n", string(pl.payload))
 				err = c.handleMessage(pl.payload)
-		case getDeviceInformation:
+			case getDeviceInformation:
 				c.debugLogPrintf("Processing GET_DEV_INFO packet: %s\n", string(pl.payload))
-			err = c.getDeviceInfo()
-		case setCalibreDeviceInfo:
+				err = c.getDeviceInfo()
+			case setCalibreDeviceInfo:
 				c.debugLogPrintf("Processing SET_CAL_DEV_INFO packet: %s\n", string(pl.payload))
 				err = c.setDeviceInfo(pl.payload)
-		case freeSpace:
+			case freeSpace:
 				c.debugLogPrintf("Processing FREE_SPACE packet: %s\n", string(pl.payload))
-			err = c.getFreeSpace()
-		case getBookCount:
+				err = c.getFreeSpace()
+			case getBookCount:
 				c.debugLogPrintf("Processing GET_BOOK_COUNT packet: %s\n", string(pl.payload))
 				err = c.getBookCount(pl.payload)
-		case sendBooklists:
+			case sendBooklists:
 				c.debugLogPrintf("Processing SEND_BOOKLISTS packet: %s\n", string(pl.payload))
 				err = c.updateDeviceMetadata(pl.payload)
-		case setLibraryInfo:
+			case setLibraryInfo:
 				c.debugLogPrintf("Processing SET_LIBRARY_INFO packet: %s\n", string(pl.payload))
-			err = c.writeTCP([]byte(c.okStr))
-		case sendBook:
+				err = c.writeTCP([]byte(c.okStr))
+			case sendBook:
 				c.debugLogPrintf("Processing SEND_BOOK packet: %s\n", string(pl.payload))
 				err = c.sendBook(pl.payload)
-		case deleteBook:
+			case deleteBook:
 				c.debugLogPrintf("Processing DELETE_BOOK packet: %s\n", string(pl.payload))
 				err = c.deleteBook(pl.payload)
-		case getBookFileSegment:
+			case getBookFileSegment:
 				c.debugLogPrintf("Processing GET_BOOK_FILE_SEGMENT packet: %s\n", string(pl.payload))
 				err = c.getBook(pl.payload)
-		case noop:
+			case noop:
 				c.debugLogPrintf("Processing NOOP packet: %s\n", string(pl.payload))
 				err = c.handleNoop(pl.payload)
-		}
-		if err != nil {
-			if err == io.EOF {
-				return nil
 			}
-			return fmt.Errorf("Start: exiting with error: %w", err)
+			if err != nil {
+				if err == io.EOF {
+					return nil
+				}
+				return fmt.Errorf("Start: exiting with error: %w", err)
+			}
 		}
 	}
-}
 }
 
 func (c *calConn) debugLogPrintf(format string, a ...interface{}) {
@@ -766,26 +766,39 @@ func (c *calConn) findCalibre(bcastPort int, mu *sync.Mutex, wg *sync.WaitGroup)
 	defer pc.Close()
 	calibreReply := make([]byte, 256)
 	udpAddr, _ := net.ResolveUDPAddr("udp", bcastAddress)
-	pc.WriteTo([]byte("hello"), udpAddr)
-	deadlineTime := time.Now().Add(1 * time.Second)
-	pc.SetReadDeadline(deadlineTime)
-	var terr net.Error
-	for {
-		bytesRead, addr, err := pc.ReadFrom(calibreReply)
-		if errors.As(err, &terr) && terr.Timeout() {
-			pc.Close()
-			return
-		} else if err != nil {
-			c.client.LogPrintf(Info, "%v\n", err)
+	for i := 0; i < 4; i++ {
+		pc.WriteTo([]byte("hello"), udpAddr)
+		deadlineTime := time.Now().Add(250 * time.Millisecond)
+		pc.SetReadDeadline(deadlineTime)
+		var terr net.Error
+		for {
+			bytesRead, addr, err := pc.ReadFrom(calibreReply)
+			if errors.As(err, &terr) && terr.Timeout() {
+				break
+			} else if err != nil {
+				c.client.LogPrintf(Info, "%v\n", err)
+				return
+			}
+			calibreIP, _, _ := net.SplitHostPort(addr.String())
+			calibreMsg := string(calibreReply[:bytesRead])
+			msgData := strings.Split(calibreMsg, ",")
+			calibrePort := msgData[len(msgData)-1]
+			instance := CalInstance{Addr: fmt.Sprintf("%s:%s", calibreIP, calibrePort), Description: msgData[0]}
+			instInList := false
+			for i := range c.calibreInstances {
+				if c.calibreInstances[i] == instance {
+					instInList = true
+					break
+				}
+			}
+			if !instInList {
+				mu.Lock()
+				c.calibreInstances = append(c.calibreInstances, instance)
+				mu.Unlock()
+			}
+		}
+		if len(c.calibreInstances) > 0 {
 			return
 		}
-		calibreIP, _, _ := net.SplitHostPort(addr.String())
-		calibreMsg := string(calibreReply[:bytesRead])
-		msgData := strings.Split(calibreMsg, ",")
-		calibrePort := msgData[len(msgData)-1]
-		instance := CalInstance{Addr: calibreIP + ":" + calibrePort, Description: msgData[0]}
-		mu.Lock()
-		c.calibreInstances = append(c.calibreInstances, instance)
-		mu.Unlock()
 	}
 }
