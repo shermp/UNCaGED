@@ -766,9 +766,9 @@ func (c *calConn) findCalibre(bcastPort int, mu *sync.Mutex, wg *sync.WaitGroup)
 	defer pc.Close()
 	calibreReply := make([]byte, 256)
 	udpAddr, _ := net.ResolveUDPAddr("udp", bcastAddress)
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 3; i++ {
 		pc.WriteTo([]byte("hello"), udpAddr)
-		deadlineTime := time.Now().Add(250 * time.Millisecond)
+		deadlineTime := time.Now().Add(500 * time.Millisecond)
 		pc.SetReadDeadline(deadlineTime)
 		var terr net.Error
 		for {
