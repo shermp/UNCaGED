@@ -387,11 +387,8 @@ func (c *calConn) handleNoop(dataBytes json.RawMessage) error {
 		}
 		// Calibre also uses noops to request more metadata from books
 		// on device. We handle that case here.
-	} else {
-		count := 0
-		if val, exist := data["count"]; exist {
-			count = int(val.(float64))
-		}
+	} else if val, exist := data["count"]; exist {
+		count := int(val.(float64))
 		// We don't do anything if count is zero
 		if count == 0 {
 			return nil
@@ -425,6 +422,14 @@ func (c *calConn) handleNoop(dataBytes json.RawMessage) error {
 		err := c.resendMetadataList(bookList)
 		if err != nil {
 			return fmt.Errorf("handleNoop: error resending metadata: %w", err)
+		}
+		// For any other message we don't yet know about, send an ok packet.
+		// This fixes an issue of Calibre sending an unknown message and expecting some sort of response
+	} else {
+		c.client.UpdateStatus(Idle, -1)
+		err = c.writeTCP([]byte(c.okStr))
+		if err != nil {
+			return fmt.Errorf("handleNoop: %w", err)
 		}
 	}
 	return nil
