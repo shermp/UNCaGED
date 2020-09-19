@@ -380,36 +380,121 @@ type BookListsDetails struct {
 
 // CalibreBookMeta contains top level metadata fields for a book from Calibre
 type CalibreBookMeta struct {
-	Authors         []string               `json:"authors"`
-	Languages       []string               `json:"languages"`
-	UserMetadata    map[string]interface{} `json:"user_metadata"`
-	UserCategories  map[string]interface{} `json:"user_categories"`
-	Comments        *string                `json:"comments"`
-	Tags            []string               `json:"tags"`
-	Pubdate         *CalibreTime           `json:"pubdate"`
-	SeriesIndex     *float64               `json:"series_index"`
-	Thumbnail       CalibreThumb           `json:"thumbnail"`
-	PublicationType *string                `json:"publication_type"`
-	Mime            *string                `json:"mime"`
-	AuthorSort      string                 `json:"author_sort"`
-	Series          *string                `json:"series"`
-	Rights          *string                `json:"rights"`
-	DbID            interface{}            `json:"db_id"`
-	Cover           *string                `json:"cover"`
-	ApplicationID   int                    `json:"application_id"`
-	BookProducer    *string                `json:"book_producer"`
-	Size            int                    `json:"size"`
-	AuthorSortMap   map[string]string      `json:"author_sort_map"`
-	Rating          *float64               `json:"rating"`
-	Lpath           string                 `json:"lpath"`
-	Publisher       *string                `json:"publisher"`
-	Timestamp       *CalibreTime           `json:"timestamp"`
-	LastModified    *CalibreTime           `json:"last_modified"`
-	UUID            string                 `json:"uuid"`
-	TitleSort       string                 `json:"title_sort"`
-	AuthorLinkMap   map[string]string      `json:"author_link_map"`
-	Title           string                 `json:"title"`
-	Identifiers     map[string]string      `json:"identifiers"`
+	Authors         []string                       `json:"authors"`
+	Languages       []string                       `json:"languages"`
+	UserMetadata    map[string]CalibreCustomColumn `json:"user_metadata"`
+	UserCategories  map[string]interface{}         `json:"user_categories"`
+	Comments        *string                        `json:"comments"`
+	Tags            []string                       `json:"tags"`
+	Pubdate         *CalibreTime                   `json:"pubdate"`
+	SeriesIndex     *float64                       `json:"series_index"`
+	Thumbnail       CalibreThumb                   `json:"thumbnail"`
+	PublicationType *string                        `json:"publication_type"`
+	Mime            *string                        `json:"mime"`
+	AuthorSort      string                         `json:"author_sort"`
+	Series          *string                        `json:"series"`
+	Rights          *string                        `json:"rights"`
+	DbID            interface{}                    `json:"db_id"`
+	Cover           *string                        `json:"cover"`
+	ApplicationID   int                            `json:"application_id"`
+	BookProducer    *string                        `json:"book_producer"`
+	Size            int                            `json:"size"`
+	AuthorSortMap   map[string]string              `json:"author_sort_map"`
+	Rating          *float64                       `json:"rating"`
+	Lpath           string                         `json:"lpath"`
+	Publisher       *string                        `json:"publisher"`
+	Timestamp       *CalibreTime                   `json:"timestamp"`
+	LastModified    *CalibreTime                   `json:"last_modified"`
+	UUID            string                         `json:"uuid"`
+	TitleSort       string                         `json:"title_sort"`
+	AuthorLinkMap   map[string]string              `json:"author_link_map"`
+	Title           string                         `json:"title"`
+	Identifiers     map[string]string              `json:"identifiers"`
+}
+
+// CalibreCustomColumn contains metadata about a single custom column
+type CalibreCustomColumn struct {
+	Value        interface{} `json:"#value#"`
+	Colnum       int         `json:"colnum"`
+	RecIndex     int         `json:"rec_index"`
+	Label        string      `json:"label"`
+	Extra        interface{} `json:"#extra#"`
+	Datatype     string      `json:"datatype"`
+	Name         string      `json:"name"`
+	CategorySort string      `json:"category_sort"`
+	IsCsp        bool        `json:"is_csp"`
+	Kind         string      `json:"kind"`
+	IsCustom     bool        `json:"is_custom"`
+	IsEditable   bool        `json:"is_editable"`
+	Column       string      `json:"column"`
+	IsMultiple2  struct {
+		UIToList    string `json:"ui_to_list,omitempty"`
+		CacheToList string `json:"cache_to_list,omitempty"`
+		ListToUI    string `json:"list_to_ui,omitempty"`
+	} `json:"is_multiple2"`
+	IsMultiple  *string         `json:"is_multiple"`
+	SearchTerms []string        `json:"search_terms"`
+	IsCategory  bool            `json:"is_category"`
+	Table       string          `json:"table"`
+	Display     json.RawMessage `json:"display"`
+	LinkColumn  string          `json:"link_column"`
+}
+
+// CalCustomColDisplay is the generic display type for custom columns
+type CalCustomColDisplay struct {
+	Description string `json:"description"`
+}
+
+// CalCustomColDisplayNum is the display type for int and float custom columns
+type CalCustomColDisplayNum struct {
+	Description  string      `json:"description"`
+	NumberFormat interface{} `json:"number_format"`
+}
+
+// CalCustomColDisplayText is the display type for text custom columns
+type CalCustomColDisplayText struct {
+	DefaultValue   string `json:"default_value"`
+	Description    string `json:"description"`
+	UseDecorations int    `json:"use_decorations,omitempty"`
+	IsNames        bool   `json:"is_names,omitempty"`
+}
+
+// CalCustomColDisplayComposite is the display type for composite custom columns
+type CalCustomColDisplayComposite struct {
+	ContainsHTML      bool   `json:"contains_html"`
+	MakeCategory      bool   `json:"make_category"`
+	CompositeTemplate string `json:"composite_template"`
+	CompositeSort     string `json:"composite_sort"`
+	Description       string `json:"description"`
+	UseDecorations    int    `json:"use_decorations,omitempty"`
+}
+
+// CalCustomColDisplayRating is the display type for ratings custom columns
+type CalCustomColDisplayRating struct {
+	Description    string `json:"description"`
+	AllowHalfStars bool   `json:"allow_half_stars"`
+}
+
+// CalCustomColDisplayComments is the display type for long form text columns
+type CalCustomColDisplayComments struct {
+	DefaultValue    string `json:"default_value"`
+	InterpretAs     string `json:"interpret_as"`
+	Description     string `json:"description"`
+	HeadingPosition string `json:"heading_position"`
+}
+
+// CalCustomColDisplayEnum is the display type for enumerated custom columns
+type CalCustomColDisplayEnum struct {
+	EnumValues     []string `json:"enum_values"`
+	Description    string   `json:"description"`
+	UseDecorations int      `json:"use_decorations"`
+	EnumColors     []string `json:"enum_colors"`
+}
+
+// CalCustomColDisplayDateTime is the display type for datetime custom columns
+type CalCustomColDisplayDateTime struct {
+	Description string `json:"description"`
+	DateFormat  string `json:"date_format"`
 }
 
 // CalibreTime holds timestamps from calibre
