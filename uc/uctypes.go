@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -400,7 +401,7 @@ type CalibreBookMeta struct {
 	BookProducer    *string                        `json:"book_producer"`
 	Size            int                            `json:"size"`
 	AuthorSortMap   map[string]string              `json:"author_sort_map"`
-	Rating          *float64                       `json:"rating"`
+	Rating          *int                           `json:"rating"`
 	Lpath           string                         `json:"lpath"`
 	Publisher       *string                        `json:"publisher"`
 	Timestamp       *CalibreTime                   `json:"timestamp"`
@@ -410,6 +411,32 @@ type CalibreBookMeta struct {
 	AuthorLinkMap   map[string]string              `json:"author_link_map"`
 	Title           string                         `json:"title"`
 	Identifiers     map[string]string              `json:"identifiers"`
+}
+
+// LangString returns the string representation of the 'language' field
+func (m *CalibreBookMeta) LangString() string {
+	return strings.Join(m.Languages, ",")
+}
+
+// TagString returns the list of tags (if any) as a comma separated string
+func (m *CalibreBookMeta) TagString() string {
+	return strings.Join(m.Tags, ",")
+}
+
+// PubString returns the publisher as a string, or the empty string no no publisher is set
+func (m *CalibreBookMeta) PubString() string {
+	if m.Publisher != nil {
+		return *m.Publisher
+	}
+	return ""
+}
+
+// RatingString returns the rating column as a string, in the form of stars
+func (m *CalibreBookMeta) RatingString() string {
+	if m.Rating != nil {
+		return formatRating(*m.Rating, false)
+	}
+	return ""
 }
 
 // CalibreTime holds timestamps from calibre

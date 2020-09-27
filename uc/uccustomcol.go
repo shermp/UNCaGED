@@ -12,7 +12,7 @@ import (
 // CalibreCustomColumn contains metadata about a single custom column
 type CalibreCustomColumn struct {
 	Value        interface{}          `json:"#value#"`
-	Colnum       int                  `json:"colnum"`
+	ColNum       int                  `json:"colnum"`
 	RecIndex     int                  `json:"rec_index"`
 	Label        string               `json:"label"`
 	Extra        interface{}          `json:"#extra#"`
@@ -204,6 +204,22 @@ func formatCalInt(calFmt *string, num int) string {
 	return strconv.Itoa(num)
 }
 
+func formatRating(rating int, allowHalf bool) string {
+	// Rating is a number from 0 - 10, with 0 being no stars, and 10 being half stars
+	if rating > 10 {
+		return strings.Repeat("★", 5)
+	}
+	quot := rating / 2
+	rem := rating % 2
+	stars := strings.Repeat("★", quot)
+	if rem > 0 && allowHalf {
+		// Use the '1/2' codepoint, because half-stars weren't introduced
+		// until unicode 11
+		stars += "½"
+	}
+	return stars
+}
+
 // String returns the raw string representation of
 // a value. The string is not formatted in any manner
 func (u *CalibreCustomColumn) String() string {
@@ -251,15 +267,8 @@ func (u *CalibreCustomColumn) ContextualString() string {
 		}
 		return formatCalFloat(numFmt, u.Value.(float64))
 	case "rating":
-		// Rating is a number from 0 - 10, with 0 being no stars, and 10 being half stars
-		quot := int(u.Value.(float64)) / 2
-		rem := int(u.Value.(float64)) % 2
-		stars := strings.Repeat("★", quot)
-		if rem > 0 {
-			// Use the '1/2' codepoint, because half-stars weren't introduced
-			// until unicode 11
-			stars += "½"
-		}
+		rating := int(u.Value.(float64))
+		return formatRating(rating, true)
 	case "datetime":
 		ct := CalibreTime(u.Value.(string))
 		dt := ct.GetTime()
