@@ -1,0 +1,767 @@
+[
+    {
+        "#intnum": {
+            "#value#": null,
+            "colnum": 4,
+            "rec_index": 28,
+            "label": "intnum",
+            "#extra#": null,
+            "datatype": "int",
+            "name": "Int Number",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#intnum"
+            ],
+            "is_category": false,
+            "table": "custom_column_4",
+            "display": {
+                "description": "",
+                "number_format": null
+            },
+            "link_column": "value"
+        },
+        "#seriestext": {
+            "#value#": null,
+            "colnum": 13,
+            "rec_index": 32,
+            "label": "seriestext",
+            "#extra#": null,
+            "datatype": "series",
+            "name": "Series Style text",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#seriestext"
+            ],
+            "is_category": true,
+            "table": "custom_column_13",
+            "display": {
+                "description": ""
+            },
+            "link_column": "value"
+        },
+        "#yesno": {
+            "#value#": null,
+            "colnum": 9,
+            "rec_index": 35,
+            "label": "yesno",
+            "#extra#": null,
+            "datatype": "bool",
+            "name": "Yes/No",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#yesno"
+            ],
+            "is_category": false,
+            "table": "custom_column_9",
+            "display": {
+                "description": ""
+            },
+            "link_column": "value"
+        },
+        "#stdtext": {
+            "#value#": null,
+            "colnum": 1,
+            "rec_index": 34,
+            "label": "stdtext",
+            "#extra#": null,
+            "datatype": "text",
+            "name": "Standard Text",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#stdtext"
+            ],
+            "is_category": true,
+            "table": "custom_column_1",
+            "display": {
+                "default_value": "\"default\"",
+                "description": "Standard Text",
+                "use_decorations": 0
+            },
+            "link_column": "value"
+        },
+        "#compcoltags": {
+            "#value#": "James GallowayTribulation: A Subjugation Story",
+            "colnum": 8,
+            "rec_index": 22,
+            "label": "compcoltags",
+            "#extra#": null,
+            "datatype": "composite",
+            "name": "Composite Columns like tags",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {
+                "ui_to_list": ",",
+                "cache_to_list": ",",
+                "list_to_ui": ", "
+            },
+            "is_multiple": ",",
+            "search_terms": [
+                "#compcoltags"
+            ],
+            "is_category": false,
+            "table": "custom_column_8",
+            "display": {
+                "contains_html": false,
+                "make_category": false,
+                "composite_template": "{author}{title}",
+                "composite_sort": "text",
+                "description": ""
+            },
+            "link_column": "value"
+        },
+        "#ratingfield": {
+            "#value#": null,
+            "colnum": 5,
+            "rec_index": 31,
+            "label": "ratingfield",
+            "#extra#": null,
+            "datatype": "rating",
+            "name": "Ratings Field",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#ratingfield"
+            ],
+            "is_category": true,
+            "table": "custom_column_5",
+            "display": {
+                "description": "",
+                "allow_half_stars": true
+            },
+            "link_column": "value"
+        },
+        "#longtextmd": {
+            "#value#": null,
+            "colnum": 12,
+            "rec_index": 30,
+            "label": "longtextmd",
+            "#extra#": null,
+            "datatype": "comments",
+            "name": "Long Text markdown",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#longtextmd"
+            ],
+            "is_category": false,
+            "table": "custom_column_12",
+            "display": {
+                "default_value": "*Testing*",
+                "interpret_as": "markdown",
+                "description": "",
+                "heading_position": "hide"
+            },
+            "link_column": "value"
+        },
+        "#fixedsettext": {
+            "#value#": null,
+            "colnum": 2,
+            "rec_index": 26,
+            "label": "fixedsettext",
+            "#extra#": null,
+            "datatype": "enumeration",
+            "name": "Fixed Set Text",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#fixedsettext"
+            ],
+            "is_category": true,
+            "table": "custom_column_2",
+            "display": {
+                "enum_values": [
+                    "one",
+                    "two",
+                    "three"
+                ],
+                "description": "",
+                "use_decorations": 0,
+                "enum_colors": [
+                    "red",
+                    "green",
+                    "blue"
+                ]
+            },
+            "link_column": "value"
+        },
+        "#longtexthtml": {
+            "#value#": null,
+            "colnum": 3,
+            "rec_index": 29,
+            "label": "longtexthtml",
+            "#extra#": null,
+            "datatype": "comments",
+            "name": "Long Text HTML",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#longtexthtml"
+            ],
+            "is_category": false,
+            "table": "custom_column_3",
+            "display": {
+                "interpret_as": "html",
+                "description": "Long form text column",
+                "heading_position": "above"
+            },
+            "link_column": "value"
+        },
+        "#csvtext": {
+            "#value#": [],
+            "colnum": 7,
+            "rec_index": 24,
+            "label": "csvtext",
+            "#extra#": null,
+            "datatype": "text",
+            "name": "Comma text",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {
+                "ui_to_list": ",",
+                "cache_to_list": "|",
+                "list_to_ui": ", "
+            },
+            "is_multiple": "|",
+            "search_terms": [
+                "#csvtext"
+            ],
+            "is_category": true,
+            "table": "custom_column_7",
+            "display": {
+                "default_value": "one, two",
+                "is_names": false,
+                "description": "Comma separated text"
+            },
+            "link_column": "value"
+        },
+        "#datefield": {
+            "#value#": "None",
+            "colnum": 10,
+            "rec_index": 25,
+            "label": "datefield",
+            "#extra#": null,
+            "datatype": "datetime",
+            "name": "Date Field",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#datefield"
+            ],
+            "is_category": false,
+            "table": "custom_column_10",
+            "display": {
+                "description": "",
+                "date_format": "iso"
+            },
+            "link_column": "value"
+        },
+        "#floatnum": {
+            "#value#": null,
+            "colnum": 11,
+            "rec_index": 27,
+            "label": "floatnum",
+            "#extra#": null,
+            "datatype": "float",
+            "name": "Float Number",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#floatnum"
+            ],
+            "is_category": false,
+            "table": "custom_column_11",
+            "display": {
+                "description": "",
+                "number_format": null
+            },
+            "link_column": "value"
+        },
+        "#compositecols": {
+            "#value#": "",
+            "colnum": 6,
+            "rec_index": 23,
+            "label": "compositecols",
+            "#extra#": null,
+            "datatype": "composite",
+            "name": "Composite Columns",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#compositecols"
+            ],
+            "is_category": false,
+            "table": "custom_column_6",
+            "display": {
+                "contains_html": false,
+                "make_category": false,
+                "composite_template": "",
+                "composite_sort": "text",
+                "description": "",
+                "use_decorations": 0
+            },
+            "link_column": "value"
+        }
+    },
+    {
+        "#intnum": {
+            "#value#": 2,
+            "colnum": 4,
+            "rec_index": 28,
+            "label": "intnum",
+            "#extra#": null,
+            "datatype": "int",
+            "name": "Int Number",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#intnum"
+            ],
+            "is_category": false,
+            "table": "custom_column_4",
+            "display": {
+                "description": "",
+                "number_format": null
+            },
+            "link_column": "value"
+        },
+        "#seriestext": {
+            "#value#": "series",
+            "colnum": 13,
+            "rec_index": 32,
+            "label": "seriestext",
+            "#extra#": 1.0,
+            "datatype": "series",
+            "name": "Series Style text",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#seriestext"
+            ],
+            "is_category": true,
+            "table": "custom_column_13",
+            "display": {
+                "description": ""
+            },
+            "link_column": "value"
+        },
+        "#yesno": {
+            "#value#": true,
+            "colnum": 9,
+            "rec_index": 35,
+            "label": "yesno",
+            "#extra#": null,
+            "datatype": "bool",
+            "name": "Yes/No",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#yesno"
+            ],
+            "is_category": false,
+            "table": "custom_column_9",
+            "display": {
+                "description": ""
+            },
+            "link_column": "value"
+        },
+        "#stdtext": {
+            "#value#": "\"default\"",
+            "colnum": 1,
+            "rec_index": 34,
+            "label": "stdtext",
+            "#extra#": null,
+            "datatype": "text",
+            "name": "Standard Text",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#stdtext"
+            ],
+            "is_category": true,
+            "table": "custom_column_1",
+            "display": {
+                "default_value": "\"default\"",
+                "description": "Standard Text",
+                "use_decorations": 0
+            },
+            "link_column": "value"
+        },
+        "#compcoltags": {
+            "#value#": "James GallowaySubjugation",
+            "colnum": 8,
+            "rec_index": 22,
+            "label": "compcoltags",
+            "#extra#": null,
+            "datatype": "composite",
+            "name": "Composite Columns like tags",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {
+                "ui_to_list": ",",
+                "cache_to_list": ",",
+                "list_to_ui": ", "
+            },
+            "is_multiple": ",",
+            "search_terms": [
+                "#compcoltags"
+            ],
+            "is_category": false,
+            "table": "custom_column_8",
+            "display": {
+                "contains_html": false,
+                "make_category": false,
+                "composite_template": "{author}{title}",
+                "composite_sort": "text",
+                "description": ""
+            },
+            "link_column": "value"
+        },
+        "#ratingfield": {
+            "#value#": 7,
+            "colnum": 5,
+            "rec_index": 31,
+            "label": "ratingfield",
+            "#extra#": null,
+            "datatype": "rating",
+            "name": "Ratings Field",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#ratingfield"
+            ],
+            "is_category": true,
+            "table": "custom_column_5",
+            "display": {
+                "description": "",
+                "allow_half_stars": true
+            },
+            "link_column": "value"
+        },
+        "#longtextmd": {
+            "#value#": "*Testing*",
+            "colnum": 12,
+            "rec_index": 30,
+            "label": "longtextmd",
+            "#extra#": null,
+            "datatype": "comments",
+            "name": "Long Text markdown",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#longtextmd"
+            ],
+            "is_category": false,
+            "table": "custom_column_12",
+            "display": {
+                "default_value": "*Testing*",
+                "interpret_as": "markdown",
+                "description": "",
+                "heading_position": "hide"
+            },
+            "link_column": "value"
+        },
+        "#fixedsettext": {
+            "#value#": "one",
+            "colnum": 2,
+            "rec_index": 26,
+            "label": "fixedsettext",
+            "#extra#": null,
+            "datatype": "enumeration",
+            "name": "Fixed Set Text",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#fixedsettext"
+            ],
+            "is_category": true,
+            "table": "custom_column_2",
+            "display": {
+                "enum_values": [
+                    "one",
+                    "two",
+                    "three"
+                ],
+                "description": "",
+                "use_decorations": 0,
+                "enum_colors": [
+                    "red",
+                    "green",
+                    "blue"
+                ]
+            },
+            "link_column": "value"
+        },
+        "#longtexthtml": {
+            "#value#": "<div>\n<p>This is some <span style=\"font-style: italic; font-weight: 600\">html</span> text</p></div>",
+            "colnum": 3,
+            "rec_index": 29,
+            "label": "longtexthtml",
+            "#extra#": null,
+            "datatype": "comments",
+            "name": "Long Text HTML",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#longtexthtml"
+            ],
+            "is_category": false,
+            "table": "custom_column_3",
+            "display": {
+                "interpret_as": "html",
+                "description": "Long form text column",
+                "heading_position": "above"
+            },
+            "link_column": "value"
+        },
+        "#csvtext": {
+            "#value#": [
+                "one",
+                "two"
+            ],
+            "colnum": 7,
+            "rec_index": 24,
+            "label": "csvtext",
+            "#extra#": null,
+            "datatype": "text",
+            "name": "Comma text",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {
+                "ui_to_list": ",",
+                "cache_to_list": "|",
+                "list_to_ui": ", "
+            },
+            "is_multiple": "|",
+            "search_terms": [
+                "#csvtext"
+            ],
+            "is_category": true,
+            "table": "custom_column_7",
+            "display": {
+                "default_value": "one, two",
+                "is_names": false,
+                "description": "Comma separated text"
+            },
+            "link_column": "value"
+        },
+        "#datefield": {
+            "#value#": "2020-09-15T23:07:40.938000+00:00",
+            "colnum": 10,
+            "rec_index": 25,
+            "label": "datefield",
+            "#extra#": null,
+            "datatype": "datetime",
+            "name": "Date Field",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#datefield"
+            ],
+            "is_category": false,
+            "table": "custom_column_10",
+            "display": {
+                "description": "",
+                "date_format": "iso"
+            },
+            "link_column": "value"
+        },
+        "#floatnum": {
+            "#value#": 2.0,
+            "colnum": 11,
+            "rec_index": 27,
+            "label": "floatnum",
+            "#extra#": null,
+            "datatype": "float",
+            "name": "Float Number",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#floatnum"
+            ],
+            "is_category": false,
+            "table": "custom_column_11",
+            "display": {
+                "description": "",
+                "number_format": null
+            },
+            "link_column": "value"
+        },
+        "#compositecols": {
+            "#value#": "",
+            "colnum": 6,
+            "rec_index": 23,
+            "label": "compositecols",
+            "#extra#": null,
+            "datatype": "composite",
+            "name": "Composite Columns",
+            "category_sort": "value",
+            "is_csp": false,
+            "kind": "field",
+            "is_custom": true,
+            "is_editable": true,
+            "column": "value",
+            "is_multiple2": {},
+            "is_multiple": null,
+            "search_terms": [
+                "#compositecols"
+            ],
+            "is_category": false,
+            "table": "custom_column_6",
+            "display": {
+                "contains_html": false,
+                "make_category": false,
+                "composite_template": "",
+                "composite_sort": "text",
+                "description": "",
+                "use_decorations": 0
+            },
+            "link_column": "value"
+        }
+    }
+]
