@@ -108,7 +108,7 @@
             "link_column": "value"
         },
         "#compcoltags": {
-            "#value#": "James GallowayTribulation: A Subjugation Story",
+            "#value#": "AuthorTitle",
             "colnum": 8,
             "rec_index": 22,
             "label": "compcoltags",
@@ -489,7 +489,7 @@
             "link_column": "value"
         },
         "#compcoltags": {
-            "#value#": "James GallowaySubjugation",
+            "#value#": "AuthorTitle",
             "colnum": 8,
             "rec_index": 22,
             "label": "compcoltags",
