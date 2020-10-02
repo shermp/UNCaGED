@@ -229,8 +229,12 @@ func (u *CalibreCustomColumn) String() string {
 	switch u.Datatype {
 	case "text":
 		if u.IsMultiple != nil {
-			if v, ok := u.Value.([]string); ok {
-				return strings.Join(v, ",")
+			if val, ok := u.Value.([]interface{}); ok {
+				v := make([]string, len(val))
+				for i, s := range val {
+					v[i] = s.(string)
+				}
+				return strings.Join(v, u.IsMultiple2.ListToUI)
 			}
 			return ""
 		}
