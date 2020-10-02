@@ -2,6 +2,7 @@ package uc
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -263,7 +264,14 @@ func (u *CalibreCustomColumn) ContextualString() string {
 		return ""
 	}
 	switch u.Datatype {
-	case "bool", "text", "comments", "series", "enumeration", "composite":
+	case "bool", "text", "comments", "enumeration", "composite":
+		return u.String()
+	case "series":
+		if u.Extra != nil {
+			if e, ok := u.Extra.(float64); ok {
+				return u.Value.(string) + fmt.Sprintf(" [%s]", strconv.FormatFloat(e, 'f', -1, 64))
+			}
+		}
 		return u.String()
 	case "int", "float":
 		var numFmt *string
