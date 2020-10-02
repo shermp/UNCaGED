@@ -246,7 +246,7 @@ func (u *CalibreCustomColumn) String() string {
 	case "int", "rating":
 		return strconv.Itoa(int(u.Value.(float64)))
 	case "bool":
-		strconv.FormatBool(u.Value.(bool))
+		return strconv.FormatBool(u.Value.(bool))
 	}
 	return ""
 }
