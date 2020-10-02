@@ -239,7 +239,12 @@ func (u *CalibreCustomColumn) String() string {
 			return ""
 		}
 		return u.Value.(string)
-	case "comments", "series", "enumeration", "datetime", "composite":
+	case "datetime":
+		if u.Value.(string) != "None" {
+			return u.Value.(string)
+		}
+		return ""
+	case "comments", "series", "enumeration", "composite":
 		return u.Value.(string)
 	case "float":
 		return strconv.FormatFloat(u.Value.(float64), 'f', -1, 64)
@@ -277,7 +282,7 @@ func (u *CalibreCustomColumn) ContextualString() string {
 		ct := CalibreTime(u.Value.(string))
 		dt := ct.GetTime()
 		if dt == nil {
-			return u.Value.(string)
+			return u.String()
 		}
 		display := CalCustomColDisplayDateTime{}
 		var dtFmt *string
