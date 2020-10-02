@@ -221,6 +221,17 @@ func formatRating(rating int, allowHalf bool) string {
 	return stars
 }
 
+func (u *CalibreCustomColumn) formatMultiple(sep string) string {
+	if val, ok := u.Value.([]interface{}); ok {
+		v := make([]string, len(val))
+		for i, s := range val {
+			v[i] = s.(string)
+		}
+		return strings.Join(v, sep)
+	}
+	return ""
+}
+
 // String returns the raw string representation of
 // a value. The string is not formatted in any manner
 func (u *CalibreCustomColumn) String() string {
@@ -230,14 +241,7 @@ func (u *CalibreCustomColumn) String() string {
 	switch u.Datatype {
 	case "text":
 		if u.IsMultiple != nil {
-			if val, ok := u.Value.([]interface{}); ok {
-				v := make([]string, len(val))
-				for i, s := range val {
-					v[i] = s.(string)
-				}
-				return strings.Join(v, u.IsMultiple2.ListToUI)
-			}
-			return ""
+			return u.formatMultiple(",")
 		}
 		return u.Value.(string)
 	case "datetime":
@@ -264,8 +268,13 @@ func (u *CalibreCustomColumn) ContextualString() string {
 		return ""
 	}
 	switch u.Datatype {
-	case "bool", "text", "comments", "enumeration", "composite":
+	case "bool", "comments", "enumeration", "composite":
 		return u.String()
+	case "text":
+		if u.IsMultiple != nil {
+			return u.formatMultiple(u.IsMultiple2.ListToUI)
+		}
+		return u.Value.(string)
 	case "series":
 		if u.Extra != nil {
 			if e, ok := u.Extra.(float64); ok {
