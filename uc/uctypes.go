@@ -149,6 +149,8 @@ type Client interface {
 	// SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
 	// struct DevInfo is modified.
 	SetDeviceInfo(devInfo DeviceInfo) error
+	// SetLibraryInfo provides the client with some information about the currently connected library
+	SetLibraryInfo(libInfo CalibreLibraryInfo) error
 	// UpdateMetadata instructs the client to update their metadata according to the
 	// new slice of metadata maps
 	UpdateMetadata(mdList []CalibreBookMeta) error
@@ -242,6 +244,56 @@ type CalibreInitInfo struct {
 	ValidExtensions        []string `json:"validExtensions"`
 	LastModifiedFormat     string   `json:"lastModifiedFormat"`
 	CurrentLibraryUUID     string   `json:"currentLibraryUUID"`
+}
+
+// CalibreLibraryInfo contains basic library information about the currently connected
+// calibre library, such as library name, uuid, and fields
+type CalibreLibraryInfo struct {
+	FieldMetadata map[string]CalibreColumnInfo `json:"fieldMetadata"`
+	LibraryUUID   string                       `json:"libraryUuid"`
+	LibraryName   string                       `json:"libraryName"`
+	OtherInfo     interface{}                  `json:"otherInfo"`
+}
+
+// CalibreColumnInfo is a simplified subset of a CalibreCustomColumn
+type CalibreColumnInfo struct {
+	ColNum       int                   `json:"colnum"`
+	RecIndex     int                   `json:"rec_index"`
+	Label        string                `json:"label"`
+	Datatype     CalibreColumnDataType `json:"datatype"`
+	Name         string                `json:"name"`
+	CategorySort string                `json:"category_sort"`
+	IsCsp        bool                  `json:"is_csp"`
+	Kind         string                `json:"kind"`
+	IsCustom     bool                  `json:"is_custom"`
+	IsEditable   bool                  `json:"is_editable"`
+	Column       string                `json:"column"`
+	SearchTerms  []string              `json:"search_terms"`
+	IsCategory   bool                  `json:"is_category"`
+	Table        string                `json:"table"`
+	Display      json.RawMessage       `json:"display"`
+	LinkColumn   string                `json:"link_column"`
+}
+
+// CalibreColumnDataType is the data type the column holds
+type CalibreColumnDataType string
+
+// KnownType checks whether the data type is known to UC
+func (t *CalibreColumnDataType) KnownType() bool {
+	switch *t {
+	case "int",
+		"series",
+		"bool",
+		"text",
+		"composite",
+		"rating",
+		"comments",
+		"enumeration",
+		"datetime",
+		"float":
+		return true
+	}
+	return false
 }
 
 // CalibreInit is used by calibre to determine the software/devices capabilities

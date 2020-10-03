@@ -223,6 +223,17 @@ func (cli *UncagedCLI) SetDeviceInfo(devInfo uc.DeviceInfo) error {
 	return nil
 }
 
+// SetLibraryInfo prints the list of custom columns in the calibre library
+func (cli *UncagedCLI) SetLibraryInfo(libInfo uc.CalibreLibraryInfo) error {
+	fmt.Printf("Custom fields: \n")
+	for field, val := range libInfo.FieldMetadata {
+		if val.IsCustom {
+			fmt.Println(field)
+		}
+	}
+	return nil
+}
+
 // UpdateMetadata instructs the client to update their metadata according to the
 // new slice of metadata maps
 func (cli *UncagedCLI) UpdateMetadata(mdList []uc.CalibreBookMeta) error {

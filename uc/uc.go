@@ -218,7 +218,7 @@ func (c *calConn) Start() (err error) {
 				err = c.updateDeviceMetadata(pl.payload)
 			case setLibraryInfo:
 				c.debugLogPrintf("Processing SET_LIBRARY_INFO packet: %s\n", string(pl.payload))
-				err = c.writeTCP([]byte(c.okStr))
+				err = c.setLibraryInfo(pl.payload)
 			case sendBook:
 				c.debugLogPrintf("Processing SEND_BOOK packet: %s\n", string(pl.payload))
 				err = c.sendBook(pl.payload)
@@ -498,7 +498,7 @@ func (c *calConn) getInitInfo(data json.RawMessage) error {
 		AppName:                 c.clientOpts.ClientName,
 		CacheUsesLpaths:         true,
 		CanSendOkToSendbook:     true,
-		CanAcceptLibraryInfo:    false,
+		CanAcceptLibraryInfo:    true,
 	}
 	payload := buildJSONpayload(initInfo, ok)
 	return c.writeTCP(payload)
@@ -640,6 +640,17 @@ func (c *calConn) updateDeviceMetadata(data json.RawMessage) error {
 	}
 	c.client.UpdateMetadata(md)
 	return nil
+}
+
+func (c *calConn) setLibraryInfo(data json.RawMessage) (err error) {
+	var libInfo CalibreLibraryInfo
+	if err = json.Unmarshal(data, &libInfo); err != nil {
+		return fmt.Errorf("setLibraryInfo: error decoding library info: %w", err)
+	}
+	if err = c.client.SetLibraryInfo(libInfo); err != nil {
+		return fmt.Errorf("setLibraryInfo: client error while sending library info: %w", err)
+	}
+	return c.writeTCP([]byte(c.okStr))
 }
 
 // sendBook is where the magic starts to happen. It recieves one

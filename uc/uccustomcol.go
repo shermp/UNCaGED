@@ -12,19 +12,19 @@ import (
 
 // CalibreCustomColumn contains metadata about a single custom column
 type CalibreCustomColumn struct {
-	Value        interface{}          `json:"#value#"`
-	ColNum       int                  `json:"colnum"`
-	RecIndex     int                  `json:"rec_index"`
-	Label        string               `json:"label"`
-	Extra        interface{}          `json:"#extra#"`
-	Datatype     CalCustomColDataType `json:"datatype"`
-	Name         string               `json:"name"`
-	CategorySort string               `json:"category_sort"`
-	IsCsp        bool                 `json:"is_csp"`
-	Kind         string               `json:"kind"`
-	IsCustom     bool                 `json:"is_custom"`
-	IsEditable   bool                 `json:"is_editable"`
-	Column       string               `json:"column"`
+	Value        interface{}           `json:"#value#"`
+	ColNum       int                   `json:"colnum"`
+	RecIndex     int                   `json:"rec_index"`
+	Label        string                `json:"label"`
+	Extra        interface{}           `json:"#extra#"`
+	Datatype     CalibreColumnDataType `json:"datatype"`
+	Name         string                `json:"name"`
+	CategorySort string                `json:"category_sort"`
+	IsCsp        bool                  `json:"is_csp"`
+	Kind         string                `json:"kind"`
+	IsCustom     bool                  `json:"is_custom"`
+	IsEditable   bool                  `json:"is_editable"`
+	Column       string                `json:"column"`
 	IsMultiple2  struct {
 		UIToList    string `json:"ui_to_list,omitempty"`
 		CacheToList string `json:"cache_to_list,omitempty"`
@@ -36,27 +36,6 @@ type CalibreCustomColumn struct {
 	Table       string          `json:"table"`
 	Display     json.RawMessage `json:"display"`
 	LinkColumn  string          `json:"link_column"`
-}
-
-// CalCustomColDataType is the data type the column holds
-type CalCustomColDataType string
-
-// KnownType checks whether the data type is known to UC
-func (t *CalCustomColDataType) KnownType() bool {
-	switch *t {
-	case "int",
-		"series",
-		"bool",
-		"text",
-		"composite",
-		"rating",
-		"comments",
-		"enumeration",
-		"datetime",
-		"float":
-		return true
-	}
-	return false
 }
 
 // CalCustomColDisplay is the generic display type for custom columns
