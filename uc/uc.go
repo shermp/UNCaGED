@@ -35,7 +35,7 @@ import (
 	"time"
 )
 
-const tcpDeadlineTimeout = 15
+const tcpDeadlineTimeout = 60
 const bookPacketContentLen = 4096
 
 // buildJSONpayload builds a payload in the format that Calibre expects
