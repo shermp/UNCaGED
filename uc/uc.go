@@ -35,7 +35,7 @@ import (
 	"time"
 )
 
-const tcpDeadlineTimeout = 60
+const tcpDeadlineTimeout = 15
 const bookPacketContentLen = 4096
 
 // buildJSONpayload builds a payload in the format that Calibre expects
@@ -543,7 +543,8 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 	if err = json.Unmarshal(data, &bcOpts); err != nil {
 		return fmt.Errorf("getBookCount: error decoding options: %w", err)
 	}
-	bc := BookCountSend{Count: c.ucdb.length(), WillStream: true, WillScan: true}
+	len := c.ucdb.length()
+	bc := BookCountSend{Count: len, WillStream: true, WillScan: true}
 	// when setting "willUseCachedMetadata" to true, Calibre is expecting a list
 	// of books with abridged metadata (the contents of the bookCountDetails struct)
 	if bcOpts.WillUseCachedMetadata {
@@ -580,6 +581,9 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 			}
 		}
 	}
+	// Calibre can take a while to process large book lists (hundreds to thousands of books)
+	// So we increase the connection deadline to 200ms per book
+	c.tcpConn.SetDeadline(time.Now().Add(time.Duration(len) * (200 * time.Millisecond)))
 	return nil
 }
 
