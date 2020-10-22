@@ -50,6 +50,26 @@ func TestConvertCalDTFormatStr(t *testing.T) {
 	}
 }
 
+func TestFormatCalInt(t *testing.T) {
+	tests := []struct {
+		name   string
+		val    int
+		fmt    string
+		result string
+	}{
+		{name: "Test 1", val: 123, fmt: "{0:,d} p.", result: "123"},
+		{name: "Test 2", val: 123, fmt: "{0:d} p.", result: "123 p."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatCalInt(&tt.fmt, tt.val)
+			if got != tt.result {
+				t.Errorf("Got: '%s', Expected: '%s'", got, tt.result)
+			}
+		})
+	}
+}
+
 type customColTT struct {
 	name    string
 	colName string
