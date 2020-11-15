@@ -35,7 +35,6 @@ import (
 	"time"
 )
 
-const tcpDeadlineTimeout = 15
 const bookPacketContentLen = 4096
 
 // buildJSONpayload builds a payload in the format that Calibre expects
@@ -61,6 +60,7 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	}
 	c.transferCount = 0
 	c.okStr = "6[0,{}]"
+	c.tcpDeadline.stdDuration = 15 * time.Second
 	c.ucdb = &UncagedDB{}
 	bookList, retErr := c.client.GetDeviceBookList()
 	if retErr != nil {
@@ -294,15 +294,25 @@ func (c *calConn) hashCalPassword(challenge string) string {
 	return shaHash
 }
 
+func (c *calConn) setTCPDeadline() {
+	if c.tcpDeadline.altDuration > 0 {
+		c.debugLogPrintf("setTCPDeadline: setting TCP deadline to %d milliseconds", c.tcpDeadline.altDuration.Milliseconds())
+		c.tcpConn.SetDeadline(time.Now().Add(c.tcpDeadline.altDuration))
+		c.tcpDeadline.altDuration = 0
+	} else {
+		c.tcpConn.SetDeadline(time.Now().Add(c.tcpDeadline.stdDuration))
+	}
+}
+
 // establishTCP attempts to connect to Calibre on a port previously obtained from Calibre
 func (c *calConn) establishTCP() error {
 	err := error(nil)
 	// Connect to Calibre
 	c.tcpConn, err = net.Dial("tcp", c.calibreAddr)
 	if err != nil {
-		return fmt.Errorf("establishTCP: dialing calibre failed: %w", err)
+		return fmt.Errorf("establishTCP: dialling calibre failed: %w", err)
 	}
-	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+	c.setTCPDeadline()
 	c.tcpReader = bufio.NewReader(c.tcpConn)
 	return nil
 }
@@ -319,7 +329,7 @@ func (c *calConn) writeTCP(payload []byte) error {
 		}
 		return fmt.Errorf("writeTCP: write to tcp connection failed: %w", err)
 	}
-	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+	c.setTCPDeadline()
 	c.debugLogPrintf("Wrote TCP packet: %s\n", string(payload))
 	return nil
 }
@@ -340,7 +350,7 @@ func (c *calConn) readTCP() ([]byte, error) {
 		return nil, fmt.Errorf("readTCP: ReadBytes failed: %w", err)
 	}
 	buffLen := len(msgSz)
-	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+	c.setTCPDeadline()
 	// Put that '[' character back into the buffer. Our JSON
 	// parser will need it later...
 	c.tcpReader.UnreadByte()
@@ -365,7 +375,7 @@ func (c *calConn) readTCP() ([]byte, error) {
 		}
 		return nil, fmt.Errorf("readTCP: did not receive full payload: %w", err)
 	}
-	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+	c.setTCPDeadline()
 	c.debugLogPrintf("Read TCP packet: %s\n", string(payload))
 	return payload, nil
 }
@@ -582,10 +592,9 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 		}
 	}
 	// Calibre can take a while to process large book lists (hundreds to thousands of books)
-	// So we increase the connection deadline to 200ms per book
-	timeout := time.Duration(len) * (200 * time.Millisecond)
-	c.debugLogPrintf("getBookCount: setting TCP deadline to %v milliseconds", (timeout / time.Millisecond))
-	c.tcpConn.SetDeadline(time.Now().Add(timeout))
+	// So we increase the connection deadline to something reasonable.
+	c.tcpDeadline.altDuration = 120 * time.Second
+	c.setTCPDeadline()
 	c.client.UpdateStatus(Waiting, -1)
 	return nil
 }
@@ -608,6 +617,8 @@ func (c *calConn) resendMetadataList(bookList []BookID) error {
 			return fmt.Errorf("resendMetadataList: error sending book metadata: %w", err)
 		}
 	}
+	c.tcpDeadline.altDuration = 120 * time.Second
+	c.setTCPDeadline()
 	return nil
 }
 
@@ -694,12 +705,12 @@ func (c *calConn) sendBook(data json.RawMessage) (err error) {
 	}
 	// we need to give the client time to download and process the book. Let's be pessimistic and assume
 	// the process happens at 100KB/s
-	saveTimeout := time.Duration(int(float64(bookDet.Length)/float64(102400)+1) * 2)
-	c.tcpConn.SetDeadline(time.Now().Add(saveTimeout * time.Second))
+	c.tcpDeadline.altDuration = time.Duration(int(float64(bookDet.Length)/float64(102400)+1)*2) * time.Second
+	c.setTCPDeadline()
 	if err = c.client.SaveBook(bookDet.Metadata, c.tcpReader, bookDet.Length, lastBook); err != nil {
 		return fmt.Errorf("sendBook: client error saving book: %w", err)
 	}
-	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+	c.setTCPDeadline()
 	c.ucdb.addEntry(bookDet.Metadata)
 	progress := ((bookDet.ThisBook + 1) * 100) / bookDet.TotalBooks
 	c.client.UpdateStatus(ReceivingBook, progress)
@@ -763,14 +774,14 @@ func (c *calConn) getBook(data json.RawMessage) error {
 	}
 	// we need to make sure the TCP connection doesn't timeout for large books
 	// Let's be pessimistic and assume the process happens at 100KB/s
-	sendTimeout := time.Duration(int(float64(len)/float64(102400)+1) * 2)
-	c.tcpConn.SetDeadline(time.Now().Add(sendTimeout * time.Second))
+	c.tcpDeadline.altDuration = time.Duration(int(float64(len)/float64(102400)+1)*2) * time.Second
+	c.setTCPDeadline()
 	if _, err = io.CopyN(c.tcpConn, bk, len); err != nil {
 		bk.Close()
 		return fmt.Errorf("getBook: error sending book to Calibre: %w", err)
 	}
 	bk.Close()
-	c.tcpConn.SetDeadline(time.Now().Add(tcpDeadlineTimeout * time.Second))
+	c.setTCPDeadline()
 	return nil
 }
 

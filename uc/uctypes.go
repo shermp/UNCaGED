@@ -206,10 +206,14 @@ type calConn struct {
 	serverPassword   string
 	tcpConn          net.Conn
 	tcpReader        *bufio.Reader
-	ucdb             *UncagedDB
-	client           Client
-	transferCount    int
-	debug            bool
+	tcpDeadline      struct {
+		stdDuration time.Duration
+		altDuration time.Duration
+	}
+	ucdb          *UncagedDB
+	client        Client
+	transferCount int
+	debug         bool
 }
 
 type calPayload struct {
