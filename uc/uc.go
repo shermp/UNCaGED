@@ -196,40 +196,40 @@ func (c *calConn) Start() (err error) {
 			c.debugLogPrintf("Calibre Opcode received: %v\n", pl.op)
 			switch pl.op {
 			case getInitializationInfo:
-				c.debugLogPrintf("Processing GET_INIT_INFO packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing GET_INIT_INFO packet: %.40s\n", string(pl.payload))
 				err = c.getInitInfo(pl.payload)
 			case displayMessage:
-				c.debugLogPrintf("Processing DISPLAY_NESSAGE packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing DISPLAY_NESSAGE packet: %.40s\n", string(pl.payload))
 				err = c.handleMessage(pl.payload)
 			case getDeviceInformation:
-				c.debugLogPrintf("Processing GET_DEV_INFO packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing GET_DEV_INFO packet: %.40s\n", string(pl.payload))
 				err = c.getDeviceInfo()
 			case setCalibreDeviceInfo:
-				c.debugLogPrintf("Processing SET_CAL_DEV_INFO packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing SET_CAL_DEV_INFO packet: %.40s\n", string(pl.payload))
 				err = c.setDeviceInfo(pl.payload)
 			case freeSpace:
-				c.debugLogPrintf("Processing FREE_SPACE packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing FREE_SPACE packet: %.40s\n", string(pl.payload))
 				err = c.getFreeSpace()
 			case getBookCount:
-				c.debugLogPrintf("Processing GET_BOOK_COUNT packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing GET_BOOK_COUNT packet: %.40s\n", string(pl.payload))
 				err = c.getBookCount(pl.payload)
 			case sendBooklists:
-				c.debugLogPrintf("Processing SEND_BOOKLISTS packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing SEND_BOOKLISTS packet: %.40s\n", string(pl.payload))
 				err = c.updateDeviceMetadata(pl.payload)
 			case setLibraryInfo:
-				c.debugLogPrintf("Processing SET_LIBRARY_INFO packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing SET_LIBRARY_INFO packet: %.40s\n", string(pl.payload))
 				err = c.setLibraryInfo(pl.payload)
 			case sendBook:
-				c.debugLogPrintf("Processing SEND_BOOK packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing SEND_BOOK packet: %.40s\n", string(pl.payload))
 				err = c.sendBook(pl.payload)
 			case deleteBook:
-				c.debugLogPrintf("Processing DELETE_BOOK packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing DELETE_BOOK packet: %.40s\n", string(pl.payload))
 				err = c.deleteBook(pl.payload)
 			case getBookFileSegment:
-				c.debugLogPrintf("Processing GET_BOOK_FILE_SEGMENT packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing GET_BOOK_FILE_SEGMENT packet: %.40s\n", string(pl.payload))
 				err = c.getBook(pl.payload)
 			case noop:
-				c.debugLogPrintf("Processing NOOP packet: %s\n", string(pl.payload))
+				c.debugLogPrintf("Processing NOOP packet: %.40s\n", string(pl.payload))
 				err = c.handleNoop(pl.payload)
 			}
 			if err != nil {
@@ -330,7 +330,7 @@ func (c *calConn) writeTCP(payload []byte) error {
 		return fmt.Errorf("writeTCP: write to tcp connection failed: %w", err)
 	}
 	c.setTCPDeadline()
-	c.debugLogPrintf("Wrote TCP packet: %s\n", string(payload))
+	c.debugLogPrintf("Wrote TCP packet: %.40s\n", string(payload))
 	return nil
 }
 
@@ -376,7 +376,7 @@ func (c *calConn) readTCP() ([]byte, error) {
 		return nil, fmt.Errorf("readTCP: did not receive full payload: %w", err)
 	}
 	c.setTCPDeadline()
-	c.debugLogPrintf("Read TCP packet: %s\n", string(payload))
+	c.debugLogPrintf("Read TCP packet: %.40s\n", string(payload))
 	return payload, nil
 }
 
