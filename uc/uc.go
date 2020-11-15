@@ -584,6 +584,7 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 	// Calibre can take a while to process large book lists (hundreds to thousands of books)
 	// So we increase the connection deadline to 200ms per book
 	c.tcpConn.SetDeadline(time.Now().Add(time.Duration(len) * (200 * time.Millisecond)))
+	c.client.UpdateStatus(Waiting, -1)
 	return nil
 }
 

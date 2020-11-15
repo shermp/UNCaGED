@@ -106,6 +106,7 @@ const (
 	SendingBook
 	SendingExtraMetadata
 	EmptyPasswordReceived
+	Waiting
 )
 
 // UncagedDB is the structure used by UNCaGED's internal database
