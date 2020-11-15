@@ -619,6 +619,7 @@ func (c *calConn) resendMetadataList(bookList []BookID) error {
 	}
 	c.tcpDeadline.altDuration = 120 * time.Second
 	c.setTCPDeadline()
+	c.client.UpdateStatus(Waiting, -1)
 	return nil
 }
 
