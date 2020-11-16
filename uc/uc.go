@@ -728,7 +728,8 @@ func (c *calConn) deleteBook(data json.RawMessage) error {
 	if err = json.Unmarshal(data, &delBooks); err != nil {
 		return fmt.Errorf("deleteBook: error decoding delbooks: %w", err)
 	}
-	for _, lp := range delBooks.Lpaths {
+	c.client.UpdateStatus(DeletingBook, 0)
+	for i, lp := range delBooks.Lpaths {
 		_, bd, err := c.ucdb.find(Lpath, lp)
 		if err != nil {
 			return fmt.Errorf("deleteBook: lpath not in db to delete")
@@ -740,6 +741,8 @@ func (c *calConn) deleteBook(data json.RawMessage) error {
 		payload := buildJSONpayload(map[string]string{"uuid": bd.UUID}, ok)
 		c.writeTCP(payload)
 		c.ucdb.removeEntry(Lpath, lp)
+		progress := ((i + 1) * 100) / len(delBooks.Lpaths)
+		c.client.UpdateStatus(DeletingBook, progress)
 	}
 	return nil
 }

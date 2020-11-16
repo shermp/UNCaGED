@@ -104,6 +104,7 @@ const (
 	Idle
 	ReceivingBook
 	SendingBook
+	DeletingBook
 	SendingExtraMetadata
 	EmptyPasswordReceived
 	Waiting
