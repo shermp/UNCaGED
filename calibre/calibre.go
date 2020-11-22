@@ -11,9 +11,9 @@ import (
 
 // ConnectionInfo contains the connection information for a Calibre instance
 type ConnectionInfo struct {
-	Host    string
-	TCPPort int
-	Name    string
+	Host    string `json:"host"`
+	TCPPort int    `json:"port"`
+	Name    string `json:"name"`
 }
 
 func timeoutReached(err error) bool {
