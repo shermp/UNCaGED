@@ -36,7 +36,7 @@ func discoverSmartBCast() ([]ConnectionInfo, error) {
 		replies := make(map[string]struct{})
 		ci := make([]ConnectionInfo, 0)
 		calibreReply := make([]byte, 512)
-		pc.SetReadDeadline(time.Now().Add(1500 * time.Millisecond))
+		pc.SetReadDeadline(time.Now().Add(1000 * time.Millisecond))
 		msgRegex := regexp.MustCompile(`calibre wireless device client \(on ([^\)]+)\);(\d{2,5}),(\d{2,5})`)
 		for {
 			bytesRead, addr, err := pc.ReadFrom(calibreReply)
