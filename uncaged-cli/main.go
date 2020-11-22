@@ -143,7 +143,7 @@ func (cli *UncagedCLI) saveDriveInfoFile() error {
 func (cli *UncagedCLI) SelectCalibreInstance(calInstances []uc.CalInstance) uc.CalInstance {
 	fmt.Println("The following Calibre instances were found:")
 	for i, instance := range calInstances {
-		fmt.Printf("\t%d. %s at %s\n", i, instance.Description, instance.Addr)
+		fmt.Printf("\t%d. %s at %s\n", i, instance.Name, instance.Host)
 	}
 	fmt.Println("Automatically selecting the first Calibre instance...")
 	return calInstances[0]

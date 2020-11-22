@@ -27,6 +27,8 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"github.com/shermp/UNCaGED/calibre"
 )
 
 type calOpCode int
@@ -41,6 +43,10 @@ type Status int
 
 // CalError is the type of Calibre specific errors the client should check for
 type CalError string
+
+// CalInstance is an alias for calibre.ConnectionInfo. It saves the client
+// from having to import another package
+type CalInstance = calibre.ConnectionInfo
 
 // Specific Calibre errors that should be handled
 const (
@@ -190,24 +196,17 @@ type Client interface {
 	SetExitChannel(exitChan chan<- bool)
 }
 
-// CalInstance describes a Calibre instance that UC found
-type CalInstance struct {
-	Addr        string
-	Description string
-}
-
 // calConn holds all parameters required to implement a calibre connection
 type calConn struct {
-	clientOpts       ClientOptions
-	calibreAddr      string
-	calibreInstances []CalInstance
-	calibreInfo      CalibreInitInfo
-	deviceInfo       DeviceInfo
-	okStr            string
-	serverPassword   string
-	tcpConn          net.Conn
-	tcpReader        *bufio.Reader
-	tcpDeadline      struct {
+	clientOpts      ClientOptions
+	calibreInstance CalInstance
+	calibreInfo     CalibreInitInfo
+	deviceInfo      DeviceInfo
+	okStr           string
+	serverPassword  string
+	tcpConn         net.Conn
+	tcpReader       *bufio.Reader
+	tcpDeadline     struct {
 		stdDuration time.Duration
 		altDuration time.Duration
 	}
