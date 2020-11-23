@@ -16,13 +16,19 @@ type ConnectionInfo struct {
 	Name    string `json:"name"`
 }
 
+// Logger is an interface to provide logging functionality
+type Logger interface {
+	// LogPrintf logs non-critical warnings
+	LogPrintf(format string, a ...interface{})
+}
+
 func timeoutReached(err error) bool {
 	var terr net.Error
 	return errors.As(err, &terr) && terr.Timeout()
 }
 
 // discoverBCast attempts to discover Calibre instances using its broadcast method
-func discoverSmartBCast() ([]ConnectionInfo, error) {
+func discoverSmartBCast(calLog Logger) ([]ConnectionInfo, error) {
 	// Most calibre instances will respond to the first port in this list, as that
 	// is what it tries to bins to first, but all of them should be checked for
 	// completeness sake.
@@ -54,6 +60,7 @@ func discoverSmartBCast() ([]ConnectionInfo, error) {
 				}
 			}
 			if timeoutReached(err) {
+				calLog.LogPrintf("discoverSmartBCast: read timed out")
 				break
 			}
 		}
@@ -71,9 +78,9 @@ func discoverSmartBCast() ([]ConnectionInfo, error) {
 }
 
 // DiscoverSmartDevice Calibre smart device instances on the local network
-func DiscoverSmartDevice() ([]ConnectionInfo, error) {
+func DiscoverSmartDevice(calLog Logger) ([]ConnectionInfo, error) {
 	// TODO: Try and get mDNS (Bonjour) working
-	return discoverSmartBCast()
+	return discoverSmartBCast(calLog)
 }
 
 // Connect to a Calibre instance, either on local or remote networks

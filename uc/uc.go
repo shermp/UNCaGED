@@ -73,7 +73,7 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	// Calibre listens for a 'hello' UDP packet on the following
 	// five ports. We try all five ports concurrently
 	c.client.UpdateStatus(SearchingCalibre, -1)
-	instances, err := calibre.DiscoverSmartDevice()
+	instances, err := calibre.DiscoverSmartDevice(c)
 	if err != nil {
 		return nil, fmt.Errorf("New: error getting calibre instances: %w", err)
 	}
@@ -184,48 +184,48 @@ func (c *calConn) Start() (err error) {
 		case pl := <-calPl:
 			if pl.err != nil {
 				if pl.err == io.EOF {
-					c.debugLogPrintf("TCP Connection Closed")
+					c.LogPrintf("TCP Connection Closed")
 					return nil
 				}
 				return fmt.Errorf("Start: packet reading failed: %w", pl.err)
 			}
-			c.debugLogPrintf("Calibre Opcode received: %v\n", pl.op)
+			c.LogPrintf("Calibre Opcode received: %v\n", pl.op)
 			switch pl.op {
 			case getInitializationInfo:
-				c.debugLogPrintf("Processing GET_INIT_INFO packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing GET_INIT_INFO packet: %.40s\n", string(pl.payload))
 				err = c.getInitInfo(pl.payload)
 			case displayMessage:
-				c.debugLogPrintf("Processing DISPLAY_NESSAGE packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing DISPLAY_NESSAGE packet: %.40s\n", string(pl.payload))
 				err = c.handleMessage(pl.payload)
 			case getDeviceInformation:
-				c.debugLogPrintf("Processing GET_DEV_INFO packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing GET_DEV_INFO packet: %.40s\n", string(pl.payload))
 				err = c.getDeviceInfo()
 			case setCalibreDeviceInfo:
-				c.debugLogPrintf("Processing SET_CAL_DEV_INFO packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing SET_CAL_DEV_INFO packet: %.40s\n", string(pl.payload))
 				err = c.setDeviceInfo(pl.payload)
 			case freeSpace:
-				c.debugLogPrintf("Processing FREE_SPACE packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing FREE_SPACE packet: %.40s\n", string(pl.payload))
 				err = c.getFreeSpace()
 			case getBookCount:
-				c.debugLogPrintf("Processing GET_BOOK_COUNT packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing GET_BOOK_COUNT packet: %.40s\n", string(pl.payload))
 				err = c.getBookCount(pl.payload)
 			case sendBooklists:
-				c.debugLogPrintf("Processing SEND_BOOKLISTS packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing SEND_BOOKLISTS packet: %.40s\n", string(pl.payload))
 				err = c.updateDeviceMetadata(pl.payload)
 			case setLibraryInfo:
-				c.debugLogPrintf("Processing SET_LIBRARY_INFO packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing SET_LIBRARY_INFO packet: %.40s\n", string(pl.payload))
 				err = c.setLibraryInfo(pl.payload)
 			case sendBook:
-				c.debugLogPrintf("Processing SEND_BOOK packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing SEND_BOOK packet: %.40s\n", string(pl.payload))
 				err = c.sendBook(pl.payload)
 			case deleteBook:
-				c.debugLogPrintf("Processing DELETE_BOOK packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing DELETE_BOOK packet: %.40s\n", string(pl.payload))
 				err = c.deleteBook(pl.payload)
 			case getBookFileSegment:
-				c.debugLogPrintf("Processing GET_BOOK_FILE_SEGMENT packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing GET_BOOK_FILE_SEGMENT packet: %.40s\n", string(pl.payload))
 				err = c.getBook(pl.payload)
 			case noop:
-				c.debugLogPrintf("Processing NOOP packet: %.40s\n", string(pl.payload))
+				c.LogPrintf("Processing NOOP packet: %.40s\n", string(pl.payload))
 				err = c.handleNoop(pl.payload)
 			}
 			if err != nil {
@@ -238,7 +238,7 @@ func (c *calConn) Start() (err error) {
 	}
 }
 
-func (c *calConn) debugLogPrintf(format string, a ...interface{}) {
+func (c *calConn) LogPrintf(format string, a ...interface{}) {
 	if c.debug {
 		c.client.LogPrintf(Debug, "[DEBUG] "+format, a...)
 	}
@@ -292,7 +292,7 @@ func (c *calConn) hashCalPassword(challenge string) string {
 
 func (c *calConn) setTCPDeadline() {
 	if c.tcpDeadline.altDuration > 0 {
-		c.debugLogPrintf("setTCPDeadline: setting TCP deadline to %d milliseconds", c.tcpDeadline.altDuration.Milliseconds())
+		c.LogPrintf("setTCPDeadline: setting TCP deadline to %d milliseconds", c.tcpDeadline.altDuration.Milliseconds())
 		c.tcpConn.SetDeadline(time.Now().Add(c.tcpDeadline.altDuration))
 		c.tcpDeadline.altDuration = 0
 	} else {
@@ -326,7 +326,7 @@ func (c *calConn) writeTCP(payload []byte) error {
 		return fmt.Errorf("writeTCP: write to tcp connection failed: %w", err)
 	}
 	c.setTCPDeadline()
-	c.debugLogPrintf("Wrote TCP packet: %.40s\n", string(payload))
+	c.LogPrintf("Wrote TCP packet: %.40s\n", string(payload))
 	return nil
 }
 
@@ -372,7 +372,7 @@ func (c *calConn) readTCP() ([]byte, error) {
 		return nil, fmt.Errorf("readTCP: did not receive full payload: %w", err)
 	}
 	c.setTCPDeadline()
-	c.debugLogPrintf("Read TCP packet: %.40s\n", string(payload))
+	c.LogPrintf("Read TCP packet: %.40s\n", string(payload))
 	return payload, nil
 }
 
@@ -675,7 +675,7 @@ func (c *calConn) sendBook(data json.RawMessage) (err error) {
 	if err = json.Unmarshal(data, &bookDet); err != nil {
 		return fmt.Errorf("sendBook: error decoding book details: %w", err)
 	}
-	c.debugLogPrintf("Send Book detail is: %+v\n", bookDet)
+	c.LogPrintf("Send Book detail is: %+v\n", bookDet)
 	if bookDet.ThisBook == 0 {
 		c.client.UpdateStatus(ReceivingBook, 0)
 	}
@@ -685,7 +685,7 @@ func (c *calConn) sendBook(data json.RawMessage) (err error) {
 	}
 	newLpath := c.client.CheckLpath(bookDet.Lpath)
 	if bookDet.WantsSendOkToSendbook {
-		c.debugLogPrintf("Sending OK-to-send packet\n")
+		c.LogPrintf("Sending OK-to-send packet\n")
 		if bookDet.CanSupportLpathChanges && newLpath != bookDet.Lpath {
 			bookDet.Lpath = newLpath
 			bookDet.Metadata.Lpath = newLpath
