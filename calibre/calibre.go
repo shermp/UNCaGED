@@ -67,10 +67,19 @@ func discoverSmartBCast(calLog Logger) ([]ConnectionInfo, error) {
 		instances <- ci
 		close(instances)
 	}()
+	discoverPacket := []byte("UNCaGED")
 	for i := 0; i < 3; i++ {
 		for _, p := range bcastPorts {
 			a, _ := net.ResolveUDPAddr("udp", fmt.Sprintf("255.255.255.255:%d", p))
-			pc.WriteTo([]byte("UNCaGED"), a)
+			pc.SetWriteDeadline(time.Now().Add(50 * time.Millisecond))
+			n, err := pc.WriteTo(discoverPacket, a)
+			if n != len(discoverPacket) || err != nil {
+				if timeoutReached(err) {
+					calLog.LogPrintf("discoverSmartBCast: write timed out")
+					continue
+				}
+				return nil, fmt.Errorf("discoverSmartBCast: wrote %d of %d bytes: %w", n, len(discoverPacket), err)
+			}
 			time.Sleep(50 * time.Millisecond)
 		}
 	}
