@@ -49,9 +49,11 @@ func discoverSmartBCast(calLog Logger) ([]ConnectionInfo, error) {
 			if bytesRead > 0 {
 				host, _, _ := net.SplitHostPort(addr.String())
 				reply := calibreReply[:bytesRead]
+				calLog.LogPrintf("discoverSmartBCast: received reply from %s", host)
 				match := msgRegex.FindSubmatch(reply)
 				if match != nil {
 					fullStr, nameStr, wirelessPort := string(match[0]), string(match[1]), string(match[3])
+					calLog.LogPrintf("discoverSmartBCast: name: %s port: %s", nameStr, wirelessPort)
 					if _, exists := replies[fullStr]; !exists {
 						port, _ := strconv.Atoi(wirelessPort)
 						ci = append(ci, ConnectionInfo{Host: host, Name: nameStr, TCPPort: port})
@@ -80,6 +82,7 @@ func discoverSmartBCast(calLog Logger) ([]ConnectionInfo, error) {
 				}
 				return nil, fmt.Errorf("discoverSmartBCast: wrote %d of %d bytes: %w", n, len(discoverPacket), err)
 			}
+			calLog.LogPrintf("discoverSmartBCast: wrote 'hello' packet to port %d", p)
 			time.Sleep(50 * time.Millisecond)
 		}
 	}
