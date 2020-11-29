@@ -92,7 +92,18 @@ func discoverSmartBCast(calLog Logger) ([]ConnectionInfo, error) {
 // DiscoverSmartDevice Calibre smart device instances on the local network
 func DiscoverSmartDevice(calLog Logger) ([]ConnectionInfo, error) {
 	// TODO: Try and get mDNS (Bonjour) working
-	return discoverSmartBCast(calLog)
+
+	// Attempt discovery up to three times to try and compensate for poor network conditions
+	for i := 0; i < 3; i++ {
+		ci, err := discoverSmartBCast(calLog)
+		if len(ci) > 0 {
+			return ci, err
+		} else if err != nil {
+			return nil, err
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return nil, nil
 }
 
 // Connect to a Calibre instance, either on local or remote networks
