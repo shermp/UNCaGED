@@ -233,6 +233,7 @@ type ClientOptions struct {
 		Width  int
 		Height int
 	}
+	DirectConnect CalInstance
 }
 
 // CalibreInitInfo is the initial information about itself that Calibre sends when establishing

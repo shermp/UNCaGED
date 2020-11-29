@@ -70,17 +70,29 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	if c.deviceInfo, retErr = c.client.GetDeviceInfo(); retErr != nil {
 		return nil, fmt.Errorf("New: Error getting info from device: %w", retErr)
 	}
-	// Calibre listens for a 'hello' UDP packet on the following
-	// five ports. We try all five ports concurrently
-	c.client.UpdateStatus(SearchingCalibre, -1)
-	instances, err := calibre.DiscoverSmartDevice(c)
-	if err != nil {
-		return nil, fmt.Errorf("New: error getting calibre instances: %w", err)
+	if c.clientOpts.DirectConnect.Host != "" && c.clientOpts.DirectConnect.TCPPort > 0 {
+		ip := net.ParseIP(c.clientOpts.DirectConnect.Host)
+		if ip == nil {
+			hosts, err := net.LookupHost(c.clientOpts.DirectConnect.Host)
+			if err != nil {
+				return nil, fmt.Errorf("New: unable to resolve direct connection host: %w", err)
+			}
+			c.clientOpts.DirectConnect.Host = hosts[0]
+		}
+		c.calibreInstance = c.clientOpts.DirectConnect
+	} else {
+		// Calibre listens for a 'hello' UDP packet on the following
+		// five ports. We try all five ports concurrently
+		c.client.UpdateStatus(SearchingCalibre, -1)
+		instances, err := calibre.DiscoverSmartDevice(c)
+		if err != nil {
+			return nil, fmt.Errorf("New: error getting calibre instances: %w", err)
+		}
+		if len(instances) == 0 {
+			return nil, fmt.Errorf("New: Could not find calibre instance: %w", CalibreNotFound)
+		}
+		c.calibreInstance = c.client.SelectCalibreInstance(instances)
 	}
-	if len(instances) == 0 {
-		return nil, fmt.Errorf("New: Could not find calibre instance: %w", CalibreNotFound)
-	}
-	c.calibreInstance = c.client.SelectCalibreInstance(instances)
 	return c, retErr
 }
 
