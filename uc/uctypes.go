@@ -459,7 +459,7 @@ type CalibreBookMeta struct {
 	BookProducer    *string                        `json:"book_producer"`
 	Size            int                            `json:"size"`
 	AuthorSortMap   map[string]string              `json:"author_sort_map"`
-	Rating          *int                           `json:"rating"`
+	Rating          *float64                       `json:"rating"`
 	Lpath           string                         `json:"lpath"`
 	Publisher       *string                        `json:"publisher"`
 	Timestamp       *CalibreTime                   `json:"timestamp"`
@@ -492,7 +492,7 @@ func (m *CalibreBookMeta) PubString() string {
 // RatingString returns the rating column as a string, in the form of stars
 func (m *CalibreBookMeta) RatingString() string {
 	if m.Rating != nil {
-		return formatRating(*m.Rating, false)
+		return formatRating(int(*m.Rating), false)
 	}
 	return ""
 }

@@ -31,6 +31,15 @@ func TestMetaUnmarshal(t *testing.T) {
 	}
 }
 
+func TestRatingString(t *testing.T) {
+	meta := CalibreBookMeta{}
+	testMetaStr := loadBytes(t, "timestamps.json")
+	json.Unmarshal(testMetaStr, &meta)
+	if meta.RatingString() != "★★★★" {
+		t.Errorf("Expected '★★★★', got '%s'", meta.RatingString())
+	}
+}
+
 func TestParseTime(t *testing.T) {
 	tests := []struct {
 		name   string
