@@ -455,7 +455,7 @@ type CalibreBookMeta struct {
 	Rights          *string                        `json:"rights"`
 	DbID            interface{}                    `json:"db_id"`
 	Cover           *string                        `json:"cover"`
-	ApplicationID   int                            `json:"application_id"`
+	ApplicationID   interface{}                    `json:"application_id"`
 	BookProducer    *string                        `json:"book_producer"`
 	Size            int                            `json:"size"`
 	AuthorSortMap   map[string]string              `json:"author_sort_map"`
