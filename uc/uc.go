@@ -60,7 +60,7 @@ func New(client Client, enableDebug bool) (*calConn, error) {
 	}
 	c.transferCount = 0
 	c.okStr = "6[0,{}]"
-	c.tcpDeadline.stdDuration = 15 * time.Second
+	c.tcpDeadline.stdDuration = 60 * time.Second
 	c.ucdb = &UncagedDB{}
 	bookList, retErr := c.client.GetDeviceBookList()
 	if retErr != nil {
@@ -601,7 +601,7 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 	}
 	// Calibre can take a while to process large book lists (hundreds to thousands of books)
 	// So we increase the connection deadline to something reasonable.
-	c.tcpDeadline.altDuration = 120 * time.Second
+	c.tcpDeadline.altDuration = 300 * time.Second
 	c.setTCPDeadline()
 	c.client.UpdateStatus(Waiting, -1)
 	return nil
@@ -625,7 +625,7 @@ func (c *calConn) resendMetadataList(bookList []BookID) error {
 			return fmt.Errorf("resendMetadataList: error sending book metadata: %w", err)
 		}
 	}
-	c.tcpDeadline.altDuration = 120 * time.Second
+	c.tcpDeadline.altDuration = 300 * time.Second
 	c.setTCPDeadline()
 	c.client.UpdateStatus(Waiting, -1)
 	return nil
