@@ -147,7 +147,7 @@ func (ucdb *UncagedDB) length() int {
 }
 
 // addEntry adds a book to our internal "DB"
-func (ucdb *UncagedDB) addEntry(md CalibreBookMeta) {
+func (ucdb *UncagedDB) addEntry(md *CalibreBookMeta) {
 	bd := BookCountDetails{
 		PriKey: ucdb.newPriKey(),
 		UUID:   md.UUID,
@@ -716,11 +716,11 @@ func (c *calConn) sendBook(data json.RawMessage) (err error) {
 	// the process happens at 100KB/s
 	c.tcpDeadline.altDuration = time.Duration(int(float64(bookDet.Length)/float64(102400)+1)*2) * time.Second
 	c.setTCPDeadline()
-	if err = c.client.SaveBook(bookDet.Metadata, c.tcpReader, bookDet.Length, lastBook); err != nil {
+	if err = c.client.SaveBook(&bookDet.Metadata, c.tcpReader, bookDet.Length, lastBook); err != nil {
 		return fmt.Errorf("sendBook: client error saving book: %w", err)
 	}
 	c.setTCPDeadline()
-	c.ucdb.addEntry(bookDet.Metadata)
+	c.ucdb.addEntry(&bookDet.Metadata)
 	progress := ((bookDet.ThisBook + 1) * 100) / bookDet.TotalBooks
 	c.client.UpdateStatus(ReceivingBook, progress)
 	return nil

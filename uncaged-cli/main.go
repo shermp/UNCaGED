@@ -271,7 +271,7 @@ func (cli *UncagedCLI) CheckLpath(lpath string) string {
 
 // SaveBook saves a book with the provided metadata to the disk.
 // Implementations return an io.WriteCloser for UNCaGED to write the ebook to
-func (cli *UncagedCLI) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, lastBook bool) (err error) {
+func (cli *UncagedCLI) SaveBook(md *uc.CalibreBookMeta, book io.Reader, len int, lastBook bool) (err error) {
 	err = nil
 	bookExists := false
 	lpath := md.Lpath
@@ -300,11 +300,11 @@ func (cli *UncagedCLI) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 		currLpath := m.Lpath
 		if currLpath == lpath {
 			bookExists = true
-			cli.metadata.md[i] = md
+			cli.metadata.md[i] = *md
 		}
 	}
 	if !bookExists {
-		cli.metadata.md = append(cli.metadata.md, md)
+		cli.metadata.md = append(cli.metadata.md, *md)
 	}
 	if lastBook {
 		cli.saveMDfile()

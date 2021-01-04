@@ -174,7 +174,7 @@ type Client interface {
 	// lastBook informs the client that this is the last book for this transfer
 	// newLpath informs UNCaGED of an Lpath change. Use this if the lpath field in md is
 	// not valid (eg filesystem limitations.). Return an empty string if original lpath is valid
-	SaveBook(md CalibreBookMeta, book io.Reader, len int, lastBook bool) error
+	SaveBook(md *CalibreBookMeta, book io.Reader, len int, lastBook bool) error
 	// GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
 	// NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
 	// change at any time, so best to handle it anyway.
