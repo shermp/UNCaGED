@@ -593,6 +593,8 @@ func (c *calConn) getBookCount(data json.RawMessage) error {
 			if err != nil {
 				return fmt.Errorf("getBookCount: error retrieving book metadata: %w", err)
 			}
+			// Ensure maps are empty, not nil
+			md.InitMaps()
 			payload := buildJSONpayload(md, ok)
 			if err = c.writeTCP(payload); err != nil {
 				return fmt.Errorf("getBookCount: error sending book metadata: %w", err)
@@ -620,6 +622,8 @@ func (c *calConn) resendMetadataList(bookList []BookID) error {
 		if err != nil {
 			return fmt.Errorf("resendMetadataList: error retrieving book metadata: %w", err)
 		}
+		// Ensure maps are empty, not nil
+		md.InitMaps()
 		payload := buildJSONpayload(md, ok)
 		if err = c.writeTCP(payload); err != nil {
 			return fmt.Errorf("resendMetadataList: error sending book metadata: %w", err)

@@ -497,6 +497,25 @@ func (m *CalibreBookMeta) RatingString() string {
 	return ""
 }
 
+// InitMaps initializes any maps that may be nil
+func (m *CalibreBookMeta) InitMaps() {
+	if m.UserMetadata == nil {
+		m.UserMetadata = make(map[string]CalibreCustomColumn)
+	}
+	if m.UserCategories == nil {
+		m.UserCategories = make(map[string]interface{})
+	}
+	if m.AuthorSortMap == nil {
+		m.AuthorSortMap = make(map[string]string)
+	}
+	if m.AuthorLinkMap == nil {
+		m.AuthorLinkMap = make(map[string]string)
+	}
+	if m.Identifiers == nil {
+		m.Identifiers = make(map[string]string)
+	}
+}
+
 // CalibreTime holds timestamps from calibre
 type CalibreTime string
 
